@@ -14,7 +14,7 @@ import {
   lerFormulario, validarFormulario, horaLocal, idLivre, montarRecado, caminhosDoRecado, lerRecado, montarAviso,
   separarNovidades, montarResumo, enviarTelegram, mascarar, DESTINOS, TIPOS, LIMITE_TELEGRAM,
 } from './recados-lib.mjs';
-import { processarEvento } from './issue-recado.mjs';
+import { processarEvento, autoresPermitidos } from './issue-recado.mjs';
 import { recadosNovos } from './aviso-telegram.mjs';
 import { baseDoResumo } from './status-horario.mjs';
 
@@ -119,6 +119,25 @@ test('processarEvento: só a conta permitida; grava um arquivo por destino; form
   assert.equal(erro.ok, 'false');
   assert.match(erro.erro, /destinatário inválido: fulano/);
   assert.equal(readdirSync(join(raiz, 'recados', 'gerente-projetos')).length, antes);
+});
+
+test('processarEvento: AUTOR_PERMITIDO aceita lista separada por vírgula (aloirr e domontecristo), comparação exata', () => {
+  const LISTA = 'domontecristo,aloirr';
+  const issue = (login) => ({ issue: { number: 8, title: '[Recado] Teste', user: { login }, body: corpoDoFormulario({}) } });
+  const r1 = processarEvento(issue('aloirr'), { raiz: tmp('issue-aloirr-'), autor: LISTA, agora: AGORA });
+  assert.equal(r1.ok, 'true', 'aloirr aceito');
+  const r2 = processarEvento(issue('domontecristo'), { raiz: tmp('issue-domonte-'), autor: LISTA, agora: AGORA });
+  assert.equal(r2.ok, 'true', 'domontecristo aceito');
+  const r3 = processarEvento(issue('aloirr'), { raiz: tmp('issue-espaco-'), autor: ' domontecristo , aloirr ', agora: AGORA });
+  assert.equal(r3.ok, 'true', 'espaços nas pontas não atrapalham');
+  for (const outra of ['outra-conta', 'aloirr2', 'aloir', 'domontecristo,aloirr', '']) {
+    assert.equal(processarEvento(issue(outra), { raiz: tmp('issue-outra-'), autor: LISTA, agora: AGORA }).ok, 'ignorar', `${outra || '(sem login)'} ignorado`);
+  }
+  for (const vazia of ['', ',', ' , ', undefined]) {
+    assert.equal(processarEvento(issue('aloirr'), { raiz: tmp('issue-vazia-'), autor: vazia, agora: AGORA }).ok, 'ignorar', 'lista vazia: ninguém passa');
+  }
+  assert.deepEqual(autoresPermitidos(' Domontecristo, aloirr ,,'), ['domontecristo', 'aloirr']);
+  assert.deepEqual(autoresPermitidos(''), []);
 });
 
 test('montarAviso: título, remetente, tipo, primeiras linhas e link; corta no limite', () => {

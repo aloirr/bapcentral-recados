@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        O **título** da issue é o assunto do recado. Só vale para issue aberta pela conta domontecristo; de outra conta, nada acontece.
+        O **título** da issue é o assunto do recado. Só vale para issue aberta pelas contas domontecristo ou aloirr; de outra conta, nada acontece.
         O recado chega na hora à caixa do destino (o time lê direto do GitHub). Na dúvida, mande para o **po** ou para o **gerente-projetos**.
   - type: dropdown
     id: para

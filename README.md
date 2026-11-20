@@ -17,7 +17,7 @@ Destinos: `gerente-projetos`, `po`, `engenheiro-software`, `engenheiro-dados`, `
   - o token fica na variável `BAP_RECADOS_TOKEN` dos ambientes do claude.ai/code.
 - **Alexandre:**
   - conversa com o **po** na sessão BapCentral-PO (o po grava os recados);
-  - ou abre uma issue com o formulário **Recado** (celular ou computador): a Action `issue-recado.yml` vira o arquivo do recado, comenta o link e fecha a issue. Só vale para issue aberta pela conta `domontecristo`.
+  - ou abre uma issue com o formulário **Recado** (celular ou computador): a Action `issue-recado.yml` vira o arquivo do recado, comenta o link e fecha a issue. Só vale para issue aberta pelas contas `domontecristo` ou `aloirr`.
 - **Telegram (opcional, desligado):**
   - `aviso-telegram.yml` avisa cada recado novo em `recados/alexandre/`;
   - `status-horario.yml` manda o resumo de hora em hora.
