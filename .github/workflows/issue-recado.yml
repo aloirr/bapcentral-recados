@@ -1,5 +1,5 @@
 # Formulário "Recado" → arquivo do recado do dono do produto (ADR 0035 do aloirr/bapcentral, T-0139).
-# Só vale para issue aberta pela conta domontecristo (AUTOR_PERMITIDO). O texto da issue nunca é interpolado no
+# Só vale para issue aberta pelas contas domontecristo ou aloirr (AUTOR_PERMITIDO). O texto da issue nunca é interpolado no
 # shell: vai por variável de ambiente ou pelo arquivo do evento, lido pelo Node.
 name: recado pelo formulário
 
@@ -15,11 +15,11 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AUTOR_PERMITIDO: domontecristo
+  AUTOR_PERMITIDO: domontecristo,aloirr
 
 jobs:
   gravar:
-    if: github.event.issue.user.login == 'domontecristo'
+    if: github.event.issue.user.login == 'domontecristo' || github.event.issue.user.login == 'aloirr'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

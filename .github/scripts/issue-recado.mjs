@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Issue do formulário "Recado" → arquivo do recado do dono do produto (workflow issue-recado.yml, ADR 0035).
 // Uso: node .github/scripts/issue-recado.mjs "$GITHUB_EVENT_PATH"
-// Ambiente: AUTOR_PERMITIDO (login aceito, ex.: domontecristo), FUSO (padrão America/Manaus), GITHUB_OUTPUT.
+// Ambiente: AUTOR_PERMITIDO (logins aceitos, separados por vírgula, ex.: domontecristo,aloirr), FUSO (padrão America/Manaus), GITHUB_OUTPUT.
 // Saídas (GITHUB_OUTPUT): ok=true|false|ignorar · id · arquivo (primeiro caminho) · erro (texto para o comentário).
 // Nunca lança com o texto da issue no log: o conteúdo só vai para o arquivo do recado.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, appendFileSync } from 'node:fs';
@@ -26,11 +26,17 @@ export function idsExistentes(raiz) {
   return ids;
 }
 
+/** Logins aceitos (lista separada por vírgula, sem espaços nas pontas, em minúsculas). Vazia: ninguém passa. */
+export function autoresPermitidos(autor) {
+  return String(autor ?? '').split(',').map((a) => a.trim().toLowerCase()).filter(Boolean);
+}
+
 /** Processa o evento (exportado para os testes). */
 export function processarEvento(evento, { raiz = process.cwd(), autor = process.env.AUTOR_PERMITIDO, fuso = process.env.FUSO || 'America/Manaus', agora = new Date() } = {}) {
   const issue = evento?.issue;
   if (!issue) return { ok: 'ignorar', motivo: 'evento sem issue' };
-  if (!autor || String(issue.user?.login || '').toLowerCase() !== String(autor).toLowerCase()) {
+  const login = String(issue.user?.login || '').toLowerCase();
+  if (!login || !autoresPermitidos(autor).includes(login)) {
     return { ok: 'ignorar', motivo: 'issue de outro autor' };
   }
   const campos = lerFormulario(issue.body);
