@@ -41,3 +41,8 @@ R-20261122-183000-alexandre
 R-20261123-062351-revisor-codigo
 R-20261123-063245-revisor-codigo
 R-20261123-063910-revisor-codigo
+R-20261123-091302-alexandre
+R-20261123-092906-alexandre
+R-20261123-100708-revisor-codigo
+R-20261123-101155-revisor-codigo
+R-20261123-101439-alexandre
