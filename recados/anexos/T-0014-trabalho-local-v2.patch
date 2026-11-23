@@ -1,0 +1,429 @@
+diff --git a/bap_automation.py b/bap_automation.py
+index ce87337..10bc53d 100644
+--- a/bap_automation.py
++++ b/bap_automation.py
+@@ -6661,6 +6661,45 @@ def _agora_manaus() -> datetime:
+         return datetime.now(timezone(timedelta(hours=-4)))   # sem horario de verao
+ 
+ 
++def recortes_por_uf(cartoes) -> dict:
++    """Funcao pura (T-0014, RN-GER-006): as visoes prontas por estado, para o
++    filtro da web. Nada e calculado: cada cartao da visao de um estado mostra
++    a barra que o PC ja desenha para esse estado (texto e % ou variacao, com
++    a legenda da barra); estado = filial da nota, como no PC.
++    Cartao sem barra do estado fica com "—". Sem filtro por supervisor
++    (R-20261123-191448-alexandre: so o filtro por estado).
++    Devolve {"uf": {UF: {"cartoes": [...]}}}."""
++    ordem, por_uf = [], {}
++    for c in cartoes or []:
++        if not isinstance(c, dict):
++            continue
++        for b in ((c.get("estados") or {}).get("barras") or []):
++            if (isinstance(b, (list, tuple)) and len(b) >= 5 and b[0]
++                    and b[1] is not None and b[0] not in ordem):
++                ordem.append(b[0])
++    for uf in ordem:
++        lista = []
++        for c in cartoes or []:
++            if not isinstance(c, dict):
++                continue
++            est = c.get("estados") or {}
++            b = next((x for x in (est.get("barras") or [])
++                      if isinstance(x, (list, tuple)) and len(x) >= 5
++                      and x[0] == uf and x[1] is not None), None)
++            # uma informacao, um lugar: sem a barra unica (repetiria o
++            # numero); o % ou a variacao vai na legenda, com o que significa
++            leg = " · ".join(x for x in ((b[3] if b else ""),
++                                         (est.get("legenda") or "") if b
++                                         and b[3] else "") if x)
++            lista.append({
++                "chave": c.get("chave"), "titulo": c.get("titulo", ""),
++                "valor": (b[2] or "—") if b else "—", "legenda": leg,
++                "aneis": [], "faixa": [], "estados": None,
++                "ajuda": c.get("ajuda") or ""})
++        por_uf[uf] = {"cartoes": lista}
++    return {"uf": por_uf}
++
++
+ def selecionar_abas_web(r: dict) -> dict:
+     """Funcao pura: do vc_painel montado, so as abas resultado e produtividade
+     ({"titulo", "abas": {...}, "avisos"?}). A tela RRM le so dados[visao],
+@@ -6692,6 +6731,8 @@ def selecionar_abas_web(r: dict) -> dict:
+                                    "colspan": bloco.get("colspan", 3)}],
+                        "altura_min": (p.get("painel") or {}).get("altura_min")},
+             "altura_min": (p.get("painel") or {}).get("altura_min"),
++            # (T-0014) visoes prontas por estado (filtro da web)
++            "recortes": recortes_por_uf(d.get(vis)),
+         }
+     for chave in _ABAS_WEB.values():
+         if chave not in abas:
+diff --git a/docs/desenho/T-0014.md b/docs/desenho/T-0014.md
+new file mode 100644
+index 0000000..90f8205
+--- /dev/null
++++ b/docs/desenho/T-0014.md
+@@ -0,0 +1,30 @@
++# T-0014 — Web: visões prontas por estado (desenho)
++
++Origem: R-20261120-122437-alexandre, item 2 ("ok" ao caminho (a): o robô manda prontas as visões mais usadas, por UF e por supervisor, sem mudar o plano de US$ 7). ADR 0001, adendo 1 ("Filtros" e "Próximos passos", item 1).
++
++## O que existe hoje (T-0013)
++- O passo 4f (`bap_automation.passo_pacote_web`) monta o `vc_painel` no PC e manda só as abas `resultado` (`res`) e `produtividade` (`prod`), parte dado do contrato.
++- As 2 abas são **da BAP inteira**: os filtros de cima do Painel Executivo não valem nelas (`relatorios_nucleo.py`, comentário do Painel do Diretor). Cada cartão já traz as **barras por estado** (`estados.barras`: `[UF, número, texto, % ou variação, tom]`), calculadas no PC por `painel_rrm.calcular` (estado = filial da nota, RN-GER-006).
++- O supervisor é 1:1 com o estado (`painel_rrm.SUP_UF`): o filtro por supervisor repetiria o filtro por estado.
++
++## Decisão
++1. **O robô manda os recortes prontos, por cópia** (função pura `bap_automation.recortes_por_uf`, dona modulo-robo):
++   - para cada estado com dado em alguma barra, a lista dos mesmos cartões da aba, na mesma ordem, em que o **valor é o texto da barra daquele estado** e a legenda é o % (ou a variação) da barra com o que ele significa (a legenda das barras do PC); o cartão do recorte não repete a barra (uma informação, um lugar);
++   - anel (MTD/MÊS) e faixa (mês anterior/anterior/julho) ficam **vazios** no recorte: o PC não calcula anel nem faixa por estado, e a web não calcula nada;
++   - cartão sem barra do estado (ex.: taxas sem quebra) mostra "—";
++   - sem filtro por supervisor (decisão do Alexandre, R-20261123-191448-alexandre: "tire o filtro por supervisor, deixe só o filtro por estado").
++   - Formato, por aba: `abas[chave]["recortes"] = {"uf": {"PA": {"cartoes": [...]}, ...}}`.
++2. **A web só escolhe** (dona modulo-web): `/painel?aba=resultado&uf=PA`; estado fora da lista = BAP inteira. Linha de filtro "Estado: BAP inteira · PA · MA · AM · …" acima dos cartões. Valida o formato dos recortes no `POST /api/pacote` (só a chave `uf`, UF com 2 letras maiúsculas, no máximo 30 recortes) e guarda `recortes` junto da aba.
++3. **Número igual ao do farol de origem por construção:** o número do recorte é o mesmo texto que o PC mostra na barra do estado no Painel do Diretor (RN-GER-001 a 007 já aplicadas no `painel_rrm`: desafio comercial, faturado líquido pela data da NF, positivação líquido > 0, internos e 000040 fora, hoje fora do DU e da projeção). Nenhuma regra nova; `bap_dados.VERSAO` fica em 27; nada de cache novo.
++4. **Plano de US$ 7:** o pacote cresce poucos KB (cartões × estados, só texto). A web não roda `montar` nem pandas.
++5. **Dados pessoais:** nenhum CNPJ, cliente, vendedor ou supervisor; teste e simulação usam dados fictícios.
++
++## Fora desta tarefa
++- Recorte por vendedor, cidade ou segmento (precisa de pré-cálculo no PC por recorte: modulo-farois).
++- Perfil "supervisor" que vê só o próprio estado: fica para depois (R-20261123-191448-alexandre); a web desta fase tem só admin/diretor/gerente.
++- Anel e faixa por estado: "a visão do estado só com o número e o % atende por agora" (R-20261123-191448-alexandre).
++
++## Critérios (T-0014)
++1. Pacote com os recortes; número do recorte = texto da barra do estado no PC (teste `tests/test_T0014_recortes_web.py`).
++2. A web troca de visão sem calcular (testes `web/tests/test_web.py::test_T0014_*`).
++3. Simulação antes × depois ao Alexandre antes do PR.
+diff --git a/tests/test_T0013_pacote_web.py b/tests/test_T0013_pacote_web.py
+index 66cd8ca..14f6b5d 100644
+--- a/tests/test_T0013_pacote_web.py
++++ b/tests/test_T0013_pacote_web.py
+@@ -339,7 +339,8 @@ def test_T0013_escopo_selecionar_abas_resultado_e_produtividade():
+                             ("produtividade", "prod",
+                              "Painel · produtividade")):
+         aba = sel["abas"][chave]
+-        assert set(aba) == {"titulo", "kpis_export", "painel", "altura_min"}
++        assert set(aba) == {"titulo", "kpis_export", "painel", "altura_min",
++                            "recortes"}   # recortes: T-0014
+         assert aba["titulo"] == tit
+         assert aba["altura_min"] == 720
+         assert aba["painel"]["altura_min"] == 720
+diff --git a/tests/test_T0014_recortes_web.py b/tests/test_T0014_recortes_web.py
+new file mode 100644
+index 0000000..2b59097
+--- /dev/null
++++ b/tests/test_T0014_recortes_web.py
+@@ -0,0 +1,89 @@
++"""T-0014 (passo 4f do robô): visões prontas por estado.
++
++Critério 1: o pacote leva as visões por UF com os números do farol de origem.
++A visão de um estado é cópia da barra que o PC já desenha para esse estado em
++cada cartão (RN-GER-006: estado = filial da nota); nada é recalculado. Sem
++filtro por supervisor (R-20261123-191448-alexandre).
++
++Dados 100% fictícios.
++"""
++import json
++
++import pytest
++
++ba = pytest.importorskip("bap_automation")
++
++
++def _cartao(chave, titulo, valor, barras, legenda_b="atingimento"):
++    return {"chave": chave, "titulo": titulo, "valor": valor,
++            "legenda": "projeção do mês",
++            "aneis": [["MTD", 98.0, "R$ 1,0 mi"], ["MÊS", 95.0, "R$ 2,0 mi"]],
++            "faixa": [["out", "+5%", "ok", "R$ 1,9 mi"]],
++            "estados": ({"barras": barras, "legenda": legenda_b}
++                        if barras is not None else None),
++            "ajuda": "texto de ajuda"}
++
++
++def _cartoes():
++    return [
++        _cartao("fat", "Faturamento líquido · proj.", "R$ 2,0 mi", [
++            ["PA", 900000.0, "R$ 900 mil", "101%", "ok"],
++            ["MA", 600000.0, "R$ 600 mil", "92%", "atencao"],
++            ["AM", 500000.0, "R$ 500 mil", "80%", "alerta"],
++            ["RR", None, "", "", ""]]),
++        _cartao("pos", "Positivação", "350", [
++            ["PA", 150.0, "150", "", ""],
++            ["MA", 120.0, "120", "+4%", "ok"],
++            ["AM", 80.0, "80", "", ""],
++            ["RR", None, "", "", ""]]),
++        _cartao("inad", "Inadimplência", "R$ 10 mil", None),
++    ]
++
++
++def test_RN_GER_006_recorte_por_uf_copia_a_barra_do_estado():
++    r = ba.recortes_por_uf(_cartoes())
++    assert set(r) == {"uf"}                              # só estado, sem supervisor
++    assert list(r["uf"]) == ["PA", "MA", "AM"]          # RR sem dado não vira visão
++    pa = r["uf"]["PA"]["cartoes"]
++    assert [c["chave"] for c in pa] == ["fat", "pos", "inad"]   # mesma ordem do PC
++    fat = pa[0]
++    assert fat["valor"] == "R$ 900 mil"                  # o texto da barra do PC
++    assert fat["legenda"] == "101% · atingimento"        # o % da barra + o que ele é
++    assert fat["estados"] is None                         # sem barra única (repetiria o número)
++    assert fat["aneis"] == [] and fat["faixa"] == []    # não há anel/faixa por estado
++    assert fat["titulo"] == "Faturamento líquido · proj."
++    assert r["uf"]["MA"]["cartoes"][1]["legenda"] == "+4% · atingimento"
++    assert r["uf"]["PA"]["cartoes"][1]["legenda"] == ""  # barra sem % = sem legenda
++
++
++def test_RN_GER_006_cartao_sem_barra_do_estado_fica_com_traco():
++    r = ba.recortes_por_uf(_cartoes())
++    inad = r["uf"]["AM"]["cartoes"][2]
++    assert inad["valor"] == "—" and inad["estados"] is None and inad["legenda"] == ""
++
++
++def test_T0014_numero_do_recorte_bate_com_a_barra_de_origem():
++    cartoes = _cartoes()
++    r = ba.recortes_por_uf(cartoes)
++    for uf, vis in r["uf"].items():
++        for c_orig, c_rec in zip(cartoes, vis["cartoes"]):
++            barra = next((b for b in ((c_orig.get("estados") or {}).get("barras") or [])
++                          if b[0] == uf and b[1] is not None), None)
++            assert c_rec["valor"] == (barra[2] if barra else "—")
++
++
++def test_T0014_selecionar_abas_leva_os_recortes_e_e_json():
++    vis = "res"
++    rel = {"titulo": "Visão comercial (fictício)", "paineis": [{
++        "titulo": "Painel · resultado", "kpis_export": [],
++        "painel": {"blocos": [{"tipo": "rrm", "visao": vis,
++                               "dados": {vis: _cartoes(), "sub": {vis: "x"}}}]}}]}
++    sel = ba.selecionar_abas_web(rel)
++    rec = sel["abas"]["resultado"]["recortes"]
++    assert set(rec) == {"uf"} and set(rec["uf"]) == {"PA", "MA", "AM"}
++    json.dumps(ba._para_json(sel), allow_nan=False)
++
++
++def test_T0014_sem_cartoes_sem_recorte():
++    assert ba.recortes_por_uf(None) == {"uf": {}}
++    assert ba.recortes_por_uf([{"titulo": "x", "valor": "1"}]) == {"uf": {}}
+diff --git a/web/app/main.py b/web/app/main.py
+index 2d097a3..5a20a80 100644
+--- a/web/app/main.py
++++ b/web/app/main.py
+@@ -221,7 +221,7 @@ def criar_app() -> FastAPI:
+         return pagina(request, "home.html", menu=menu)
+ 
+     @app.get("/painel", response_class=HTMLResponse)
+-    async def painel(request: Request, aba: str = "resultado"):
++    async def painel(request: Request, aba: str = "resultado", uf: str = ""):
+         usuario(request, VERES)
+         info = ultimo.get()
+         rel = (info or {}).get("relatorios", {}).get(RELATORIO[0])
+@@ -229,8 +229,11 @@ def criar_app() -> FastAPI:
+         if not abas:
+             return pagina(request, "painel.html", abas=[], tela=None, aba=aba)
+         atual = next((a for a in abas if a["chave"] == aba), abas[0])
++        # T-0014: o filtro só escolhe a visão pronta do PC (por estado)
++        escolhido = render.escolher_uf(atual, uf[:4] or None)
+         return pagina(request, "painel.html", abas=abas, aba=atual["chave"],
+-                      tela=render.aba_para_tela(atual))
++                      tela=render.aba_para_tela(atual, escolhido),
++                      filtros=render.filtros(atual), uf=escolhido or "")
+ 
+     # ------------------------------------------------------------ usuários (admin)
+     @app.get("/usuarios", response_class=HTMLResponse)
+diff --git a/web/app/pacotes.py b/web/app/pacotes.py
+index a5ec5e1..7a5347b 100644
+--- a/web/app/pacotes.py
++++ b/web/app/pacotes.py
+@@ -45,6 +45,28 @@ def _cartao_ok(c) -> bool:
+         isinstance(b, list) and len(b) == 5 for b in barras))
+ 
+ 
++RE_UF = re.compile(r"^[A-Z]{2}$")
++MAX_RECORTES = 30
++
++
++def _recortes_erros(rec) -> str | None:
++    """T-0014: visões prontas por estado (opcional). Só formato: o número vem pronto do PC."""
++    if rec is None:
++        return None
++    if not isinstance(rec, dict):
++        return "recortes precisa ser objeto"
++    ufs = rec.get("uf") or {}
++    if not isinstance(ufs, dict) or set(rec) - {"uf"}:
++        return "recortes precisa ser {\"uf\": {...}}"
++    if len(ufs) > MAX_RECORTES:
++        return "recortes demais"
++    for uf, v in ufs.items():
++        cs = v.get("cartoes") if isinstance(v, dict) else None
++        if not RE_UF.match(str(uf)) or not isinstance(cs, list) or not all(_cartao_ok(c) for c in cs):
++            return f"recorte {str(uf)[:4]} inválido"
++    return None
++
++
+ def validar(c) -> list[str]:
+     erros: list[str] = []
+     if not isinstance(c, dict):
+@@ -95,6 +117,10 @@ def validar(c) -> list[str]:
+             cs = d.get(visao)
+             if not isinstance(cs, list) or not cs or not all(_cartao_ok(c) for c in cs):
+                 erros.append(f"{k}.abas.{chave}: cartões inválidos")
++                continue
++            er = _recortes_erros(a.get("recortes"))
++            if er:
++                erros.append(f"{k}.abas.{chave}: {er}")
+     return erros[:10]
+ 
+ 
+diff --git a/web/app/render.py b/web/app/render.py
+index 181623c..9d431f7 100644
+--- a/web/app/render.py
++++ b/web/app/render.py
+@@ -88,12 +88,30 @@ def localizar_abas(rel: dict) -> list[dict]:
+             continue
+         b = ((a.get("painel") or {}).get("blocos") or [{}])[0]
+         abas.append({"chave": chave, "titulo": a.get("titulo", ""), "visao": visao,
+-                     "dados": b.get("dados") or {}})
++                     "dados": b.get("dados") or {}, "recortes": a.get("recortes") or {}})
+     return abas
+ 
+ 
+-def aba_para_tela(aba: dict) -> dict:
++def filtros(aba: dict) -> dict:
++    """T-0014: as visões prontas que o PC mandou para esta aba (nada é calculado aqui)."""
++    rec = aba.get("recortes") or {}
++    return {"ufs": list((rec.get("uf") or {}).keys())}
++
++
++def escolher_uf(aba: dict, uf: str | None = None) -> str | None:
++    """O estado escolhido; fora da lista = BAP inteira."""
++    f = filtros(aba)
++    uf = (uf or "").upper() or None
++    return uf if uf in f["ufs"] else None
++
++
++def aba_para_tela(aba: dict, uf: str | None = None) -> dict:
+     d, v = aba["dados"], aba["visao"]
+-    return {"titulo": TITULOS[v], "sub": (d.get("sub") or {}).get(v, ""),
+-            "cartoes": [cartao(c) for c in d.get(v) or []],
++    sub = (d.get("sub") or {}).get(v, "")
++    cartoes = d.get(v) or []
++    if uf:
++        cartoes = ((aba.get("recortes") or {}).get("uf") or {}).get(uf, {}).get("cartoes") or []
++        sub = f"{uf} · estado = filial da nota · {sub}" if sub else f"{uf} · estado = filial da nota"
++    return {"titulo": TITULOS[v], "sub": sub, "uf": uf,
++            "cartoes": [cartao(c) for c in cartoes],
+             "como_ler": d.get("como_ler") or "", "avisos": d.get("avisos") or []}
+diff --git a/web/app/static/estilo.css b/web/app/static/estilo.css
+index 55de4fe..201cecf 100644
+--- a/web/app/static/estilo.css
++++ b/web/app/static/estilo.css
+@@ -54,3 +54,8 @@ button{background:var(--azul);color:#fff;border-color:var(--azul);cursor:pointer
+ .tab{border-collapse:collapse;width:100%;font-size:.85rem}
+ .tab th,.tab td{padding:.35rem .5rem;border-bottom:1px solid #e9ecef;text-align:left}
+ .tab th{background:#e7edf5}
++.filtros{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin:.2rem 0 .8rem}
++.filtros .f-rot{font-size:.75rem;font-weight:700;color:#5e6b62;margin:0 .2rem 0 .4rem}
++.filtros a{white-space:nowrap;padding:.3rem .7rem;border-radius:16px;border:1px solid #cfdccb;background:#fff;color:#1b2430;text-decoration:none;font-size:.85rem;min-height:28px}
++.filtros a.ativa{background:#2f7d32;border-color:#2f7d32;color:#fff}
++.rrm-recorte .rc{min-height:0}
+diff --git a/web/app/templates/painel.html b/web/app/templates/painel.html
+index 3d64b54..752df68 100644
+--- a/web/app/templates/painel.html
++++ b/web/app/templates/painel.html
+@@ -6,11 +6,18 @@
+ <p class="aviso atencao">Sem dados do painel no último pacote.</p>
+ {% else %}
+ <nav class="abas">
+-  {% for a in abas %}<a href="/painel?aba={{ a.chave }}" class="{{ 'ativa' if a.chave == aba }}">{{ a.titulo }}</a>{% endfor %}
++  {% for a in abas %}<a href="/painel?aba={{ a.chave }}{% if uf %}&uf={{ uf }}{% endif %}" class="{{ 'ativa' if a.chave == aba }}">{{ a.titulo }}</a>{% endfor %}
+ </nav>
++{% if filtros and filtros.ufs %}
++<nav class="filtros" aria-label="Filtro por estado">
++  <span class="f-rot">Estado</span>
++  <a href="/painel?aba={{ aba }}" class="{{ 'ativa' if not uf }}">BAP inteira</a>
++  {% for u in filtros.ufs %}<a href="/painel?aba={{ aba }}&uf={{ u }}" class="{{ 'ativa' if u == uf }}">{{ u }}</a>{% endfor %}
++</nav>
++{% endif %}
+ <header class="cab-painel"><h1>{{ tela.titulo }}</h1><span>{{ tela.sub }}</span></header>
+ {% for a in tela.avisos %}<p class="aviso atencao">{{ a }}</p>{% endfor %}
+-<section class="rrm">
++<section class="rrm{{ ' rrm-recorte' if tela.uf }}">
+ {% for c in tela.cartoes %}
+ <article class="rc">
+   <div class="rc-topo">
+@@ -42,7 +49,7 @@
+     {% endfor %}
+   </div>
+   {% endif %}
+-  <div class="rc-filete"></div>
++  {% if not tela.uf %}<div class="rc-filete"></div>{% endif %}
+   {% if c.estados %}
+   <div class="rc-barras">
+     {% for b in c.estados.barras %}
+diff --git a/web/tests/test_web.py b/web/tests/test_web.py
+index 8fb3da1..a9aac05 100644
+--- a/web/tests/test_web.py
++++ b/web/tests/test_web.py
+@@ -374,3 +374,64 @@ def test_config_token_curto_nao_sobe_e_limite_padrao(amb, monkeypatch):
+ def test_css_barras_sem_colunas_fixas():
+     css = (Path(__file__).resolve().parents[1] / "app" / "static" / "estilo.css").read_text(encoding="utf-8")
+     assert "repeat(4,1fr)" not in css and "grid-auto-columns:1fr" in css
++
++
++# ------------------------------------------------------------ T-0014: visões prontas por estado
++def _recortes():
++    from conftest import _cartao
++    pa = [_cartao("Faturamento líquido · proj.", "R$ 28,6 mil", "9%",
++                  uf_bars=[["PA", 28600.0, "R$ 28,6 mil", "9%", "alerta"]])]
++    ma = [_cartao("Faturamento líquido · proj.", "R$ 87,0 mil", "110%",
++                  uf_bars=[["MA", 87000.0, "R$ 87,0 mil", "110%", "ok"]])]
++    for c in pa + ma:
++        c["aneis"], c["faixa"] = [], []
++    return {"uf": {"PA": {"cartoes": pa}, "MA": {"cartoes": ma}}}
++
++
++def _pacote_com_recortes():
++    from conftest import pacote_ficticio
++    p = pacote_ficticio()
++    for a in p["relatorios"]["vc_painel"]["abas"].values():
++        a["recortes"] = _recortes()
++    return p
++
++
++def test_T0014_pacote_com_recortes_aceito_e_guardado(cli, amb):
++    from conftest import postar
++    assert postar(cli, _pacote_com_recortes()).status_code == 200
++    import json
++    arq = sorted((amb / "pacotes").glob("*.json"))[-1]
++    g = json.loads(arq.read_text(encoding="utf-8"))
++    assert set(g["relatorios"]["vc_painel"]["abas"]["resultado"]["recortes"]["uf"]) == {"PA", "MA"}
++
++
++def test_T0014_recortes_invalidos_422(cli):
++    from conftest import postar
++    p = _pacote_com_recortes()
++    p["relatorios"]["vc_painel"]["abas"]["resultado"]["recortes"]["supervisor"] = {"X": "PA"}
++    assert postar(cli, p).status_code == 422                         # só filtro por estado
++    p = _pacote_com_recortes()
++    p["relatorios"]["vc_painel"]["abas"]["resultado"]["recortes"]["uf"]["pa"] = {"cartoes": []}
++    assert postar(cli, p).status_code == 422
++
++
++def test_T0014_filtro_mostra_a_visao_pronta_sem_calcular(admin):
++    from conftest import postar
++    assert postar(admin, _pacote_com_recortes()).status_code == 200
++    html = admin.get("/painel?aba=resultado").text
++    assert "BAP inteira" in html and "R$ 165 mil" in html          # sem filtro: o total
++    html = admin.get("/painel?aba=resultado&uf=MA").text
++    assert "R$ 87,0 mil" in html and "R$ 165 mil" not in html       # a barra do MA, como veio
++    assert "rrm-recorte" in html                                     # cartão compacto no recorte
++    html = admin.get("/painel?aba=resultado&uf=pa").text
++    assert "R$ 28,6 mil" in html and "PA · estado = filial da nota" in html
++    assert "Supervisor" not in html                                  # sem filtro por supervisor
++    html = admin.get("/painel?aba=resultado&uf=ZZ").text           # estado sem visão = BAP inteira
++    assert "R$ 165 mil" in html
++
++
++def test_T0014_sem_recortes_sem_filtro(admin):
++    from conftest import postar
++    assert postar(admin).status_code == 200
++    html = admin.get("/painel?aba=resultado").text
++    assert 'class="filtros"' not in html
