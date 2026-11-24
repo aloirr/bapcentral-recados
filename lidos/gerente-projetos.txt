@@ -55,3 +55,17 @@ R-20261123-110206-alexandre
 R-20261123-110942-revisor-codigo
 R-20261123-111741-revisor-codigo
 R-20261123-112418-revisor-codigo
+R-20261123-114709-revisor-codigo
+R-20261123-184340-alexandre
+R-20261123-184341-alexandre
+R-20261123-191448-alexandre
+R-20261123-192835-alexandre
+R-20261123-193000-revisor-codigo
+R-20261123-195144-alexandre
+R-20261123-200528-revisor-codigo
+R-20261123-200529-corretor-redundancias
+R-20261123-200530-designer-ux
+R-20261123-202414-revisor-codigo
+R-20261123-203123-revisor-codigo
+R-20261123-210500-alexandre
+R-20261123-213000-alexandre
