@@ -87,3 +87,6 @@ R-20261124-222224-gerente-projetos
 R-20261124-222323-gerente-projetos
 R-20261124-222415-gerente-projetos
 R-20261124-224138-gerente-projetos
+R-20261125-020210-gerente-projetos
+R-20261125-021827-gerente-projetos
+R-20261125-025823-gerente-projetos
