@@ -32,7 +32,7 @@ criado_em: 2026-11-24T21:20:02-04:00
 
 ### 🔴 1. Dado pessoal real nas imagens (regra 6)
 - A anonimização trocou `nome` e `nome_msg`, mas **não trocou o texto da `mensagem`**.
-- Por isso as 139 caixas de mensagem trazem o nome real do cliente: "Olá, Bruno Furtado Costa!", "Olá, Mariana de Campos!", "Olá, Jhones B Gomes!", "Olá, Matheus Alves Pendra!"…
+- Por isso as 139 caixas de mensagem trazem o nome real do cliente: [nomes de clientes ocultados — regra 6]
 - Um deles traz o que parece o começo de um CPF ou CNPJ: "Olá, **[CPF/CNPJ e nome ocultados] Ca!" (sim3-cobranca-pc, card Cliente 071).
 - O que fazer: a simulação deve remontar a `mensagem` a partir do `modelo` com o `nome_msg` fictício. As imagens atuais não podem sair da sessão.
 - Achado de produto, para o dono do robô (`cobranca_whatsapp`), registrado aqui: a saudação usa a razão social crua.
