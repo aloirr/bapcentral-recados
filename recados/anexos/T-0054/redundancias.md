@@ -40,3 +40,29 @@
 - **RD-0251 a RD-0255** (modulo-web): no mesmo PR da web.
 - **Reteste:** heads novos com `pytest web/tests/test_T0054_entregas_edicao.py web/tests/test_T0021_edicao.py web/tests/test_T0036_analista.py` verde, mais a leitura do diff.
 - O catálogo (`docs/redundancias/catalogo.md`) não foi atualizado: esta rodada foi feita sem commit, a pedido do gerente.
+
+## Reteste: web `c9feadb0859c54dad7fca468576200b122351675`, desenho e contrato `4c0a990d715fa05f6ee20e7925b093e2005bb370`, robô `f0b895b` sem mudança (27/11/2026)
+
+- Escopo: os diffs `1862a53..c9feadb` (web) e `ccc2e70..4c0a990`, só `docs/desenho/T-0054.md` e §10.9.7. O resto desse intervalo é o merge do `main`.
+- Evidência: `pytest web/tests/test_T0054_entregas_edicao.py web/tests/test_T0021_edicao.py web/tests/test_T0036_analista.py` no `c9feadb`: 88 passaram. Também li os diffs.
+
+| ID | Situação | Evidência |
+|---|---|---|
+| RD-0250 | **fechado** | A tabela do §10.9.7 tem as 3 linhas, iguais às da web e do robô. A assinatura ficou `pode_editar(perfil, lugar)`, com `lugar = (rid, tabela)`, no contrato e no desenho §5. O §4 do desenho só remete ao 03-regras, sem copiar o texto. O P1 e o P2 do §6 estão "decididos: A". |
+| RD-0251 | **fechado** | `pode` em `main.py:653-665` e `ed.pode` em `_grade.html:36`. Não sobrou `ed.admin`. Os comentários de `edicoes.py:1`, `main.py:648`, `estilo.css:342` e `_grade.html:3` foram alinhados. |
+| RD-0252 | **fechado** | `perfis_do_rid` usa `dict.fromkeys([...] + list(EDITA))`, então o admin sai uma vez só. |
+| RD-0253 | **fechado** | `{% set inv %}` aparece uma vez por campo e é usado nas 5 tags. O regex do teste continua passando. |
+| RD-0254 | **fechado** | A regra `.bc3-ed .ed-marca` saiu inteira. Ela também levava o `margin:0`, então agora a marca do cartão no celular soma o `margin-left:.3rem` da `.ed-marca` ao `gap:.5rem`. Isso é espaçamento, não redundância: fica com o designer-ux, sem ID. |
+| RD-0255 | **aberto (resíduo)** | `test_T0054_versao` saiu, mas ficaram 3 linhas em branco entre `test_RN_GER_018_farol_liberado_nao_da_edicao` e `test_RN_POS_011_formulario_diz_a_nota_e_o_cliente` (`web/tests/test_T0054_entregas_edicao.py:125-127`). Antes → depois: 3 linhas em branco → 2. Baixa, modulo-web. O caso é o mesmo do resíduo do RD-0239 (T-0052). |
+
+### Novo
+- **Sem achado novo de redundância.**
+  - A troca de `--alerta` por `--erro` no `.ed-campo [aria-invalid]` e no `.ed-erro` usa o token da marca, que já existia no `main`. Os dois tokens terem o mesmo valor (`#B42318`) vem de antes do lote e não é da T-0054.
+  - O `--erro` do pedido não mexeu em texto de tela.
+- Encaminhado, sem catálogo:
+  - O comentário de `novo_tela` (`main.py:671`) agora diz "só quem edita o lugar", e o contrato §10.9.7 diz "a linha nova continua só do admin". É a regra da linha nova, que vai ao revisor-codigo, como já estava encaminhado.
+  - No desenho §5, a branch (`T-0054-edicao-posvenda`) e o nome do teste (`test_T0054_edicao_posvenda.py`) não são os reais (`T-0054-entregas-edicao`, `test_T0054_entregas_edicao.py`). Na linha 6, falta a vírgula em "RN-GER-018 RN-POS-010". As duas coisas são exatidão do documento, não repetição.
+
+### Parecer do reteste
+- **1 achado em aberto:** RD-0255 (resíduo), baixa, em arquivo de teste e não só em comentário ou título. Pela regra de liberação, segura o lote até as 3 linhas em branco virarem 2.
+- O desenho e o contrato (`4c0a990`) e o robô (`f0b895b`) estão liberados quanto a redundância.

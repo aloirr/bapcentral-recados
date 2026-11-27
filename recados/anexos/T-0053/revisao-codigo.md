@@ -69,3 +69,51 @@
 - Os totais de Fretes e Entregas voltam aos da base (661 notas / R$ 3.255.436; frete R$ 162.789), ou a diferença vem explicada e aprovada pelo po.
 - O cartão "Clientes" de excluídos volta a 399.
 - O teste do `testes` (`test_RN_GER_019_*`) cobre os casos de borda e a igualdade dos cartões por filial.
+
+---
+
+# Reteste no head b4006e7a76936b57f4b317e262da570cb44ca007 (delta desde b56f121)
+
+- Delta: só `relatorios_nucleo.py` (+25/−28). Base do diff ainda `85bc589`.
+- RN-GER-019 lida no head atual de `origin/gerente-projetos/T-0053-regras`: o escopo é a família do Farol de Pedidos, com "Saldo Não Apurado" e a fantasia igual ao nome.
+
+## Parecer: SEM 🔴 de código e SEM 🟡. Merge segue bloqueado só pelo 🔴2 (teste da RN-GER-019 com o `testes`, branch `testes/T-0053-cadastro-do-pedido`, ainda a revisar)
+
+### Itens do parecer anterior
+- **🔴1 Fretes/Entregas: resolvido.** Os `rev_cmp*.py` comparam a base 85bc589 com o head b4006e7 (bases congeladas, hoje = 27/11/2026). Fretes, Entregas, Devoluções e Saldo de desconto ficaram **idênticos ao main**: mesmas linhas, mesmos cartões, mesmos cartões por filial, nenhuma célula diferente.
+  - Fretes: 661 notas, R$ 3.255.436, frete R$ 162.726. Nenhuma nota saiu ou entrou.
+  - Entregas: cartão Frete R$ 162.789.
+  - Nos hunks do `git diff 85bc589 b4006e7` sobraram só `cadastro_do_pedido`, `Contexto`, `detalhe_pedido`, `pedidos_em_aberto`, `pedidos_excluidos`, `analise_credito`/`CREDITO_*`, `farol_pedidos` e `_pedidos_abertos_da_parcial`. `_analitico_produto`, `_historico_de_compra`, `entregas`, `devolucoes`, `fretes` e `saldo_desconto` voltaram ao main.
+- **🔴2 teste RN-GER-019: em aberto.** Está com o `testes`; vou revisar quando publicar.
+- **🟡1 cartão "Clientes" (`:1805`): resolvido.** Conta pelo código (`split(" - ")[0]` de `nome_cliente`), e dá **399 = main**. Os cartões de Excluídos ficaram todos iguais.
+- **🟡2 subtítulo da consulta (`:1505`): resolvido.** Passa `i0['filial']`.
+- **🟡3 `HERDA_LOJA_UNICA`: resolvido.** A constante saiu (`hasattr` dá False), e o ramo de loja única ficou incondicional, conforme a RN.
+- **🟢 do parecer anterior:**
+  - O 1 (faturados e markup) ficou fora por decisão da RN ("os outros faróis seguem como antes").
+  - O 2 (nome entre todas as lojas) entrou na RN.
+  - O 3 (fallback duplicado em `lojas_do_codigo`) continua como sugestão.
+  - O 4 (`:2383`) saiu com a reversão do analítico.
+
+### Números no head (família do Farol de Pedidos)
+- **Farol de Pedidos**: 2.216 linhas. Cartões, total e cartões por filial iguais ao main.
+  - Mudam só as células UF (18), CIDADE (55), RAZÃO (45), FANTASIA (51), LIMITE (51), DISP./ATRASO (44).
+  - 38 linhas com "(loja não identificada)": 16 entregues, 16 excluídas, 6 devolvidas.
+  - "ANÁLISE CRÉDITO" dos 10 em aberto igual ao main: 4 Com Limite, 3 Sem Limite, 2 em Atraso, 1 Parcial. Nenhum VEA congelado cai em "Saldo Não Apurado".
+- **Pedidos em aberto**: idêntico ao main (10 pedidos, 27 itens faltantes).
+- **Excluídos**: 830 linhas, cartões iguais (399 clientes). Mudam CIDADE (34), UF (18) e CLIENTE (31). Na tabela "Por cliente", 603 linhas, com 14 nomes trocados.
+
+### Função pura (dicts sintéticos)
+- Os mesmos 8 casos do parecer anterior batem com a RN nova.
+- Sem loja única, `fantasia = nome`: "(loja não identificada)" ou o nome comum.
+- Crédito sem saldo, ou sem loja identificada: `analise_credito` dá **"Saldo Não Apurado"**. Em Pedidos em aberto sai em caixa alta, "SALDO NÃO APURADO". A parcial do vendedor (`.lower()`) mostra "saldo não apurado".
+- Nenhum resto de "Crédito não apurado" no código. O grep dos consumidores continua sem comparação de string fixa fora de `relatorios_nucleo.py`.
+
+### Conferências
+- `bap_dados.VERSAO = 27`; `bap_dados.py` intocado; sem marca de cache nova (não precisa).
+- Nenhum segredo nem dado pessoal no delta. Dados digitados e configs intocados.
+- `compileall` OK. `node scripts/coord.mjs verificar --base origin/main` OK (1 arquivo, dono `modulo-farois`).
+- `pytest tests/ -q` com xvfb, arquivo por arquivo: **1.005 passed, 10 skipped, 2 xpassed, 0 failed**. Árvore limpa depois; `RELATORIOS/painel_diretor_hist.json` intocado.
+
+### 🟢 novas (não bloqueiam)
+1. `:769` e `:1505` passam de 79 colunas. As linhas `:807`, `:816`, `:841` e `:1083` já passavam no main.
+2. Excluídos (`:1805`): a contagem por código depende do formato "cod - nome" do `nome_cliente`. Um `{i0["cliente"]}` guardado na linha seria mais robusto. O resultado de hoje está certo.
