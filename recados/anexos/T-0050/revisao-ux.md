@@ -214,3 +214,109 @@ No PR do código, conferir três coisas:
 - o D1 (rótulos);
 - o 🟢 10 (os tokens de tamanho);
 - os PNGs no head SHA do PR, com o painel do Admin e o do Trade.
+
+---
+
+## Código (a5e723b)
+
+- **O que revisei:** a branch `modulo-web/T-0050-acesso-usuario`, **head SHA `a5e723be225dc8f31755c8864bbf7bec8395c868`** (web 0.10.0): `estilo.css`, `usuarios.html`, `usuarios.js` e `render.py`.
+- **Comparei** os PNGs do autor (`sim-codigo/`) com a simulação v2 aprovada (`sim/`).
+- **Medi no servidor real.** Subi o `a5e723b` com `uvicorn` (dados numa pasta temporária, segredos de teste). Criei `admin.ficticio` e `usuario.ficticio.01` a `.07` pela própria tela, com os mesmos perfis da simulação. Depois abri, pelo Playwright, o painel "Faróis" de **cada uma das 8 linhas** e o "Novo usuário", a 1366×768, 1920×1080 e 390×844. Fiz duas rodadas: com o aviso "Sem dados ainda…" (sem pacote, como nos PNGs do autor) e sem ele (o caso de produção, com pacote).
+- **PNGs desta seção:** em `ux/codigo-a5e723b/`, a 1366×768, sem o aviso: `antes-novo-*`, `depois-novo-*`, `antes-trade-*` e `depois-trade-*`. O "depois" é o `a5e723b` com a folha da correção abaixo, injetada na página.
+
+### Resultado
+
+**Ainda não aprovado. Sem 🔴, com 2 🟡**, ambos na versão de PC (1366) e ambos fáceis de corrigir. O celular está igual à v2 aprovada.
+
+### Os itens que pediram conferência
+
+| Item | Situação no `a5e723b` |
+|---|---|
+| 🟢 10 · tokens `--t-apoio` e `--t-bloco` | **Resolvido.** Os dois estão no `:root` (12 px e 16 px). No bloco novo do `estilo.css`, todo `font-size` usa token (`--t-apoio` ×2, `--t-bloco`, `--t-corpo` ×2, `--t-rotulo`). Nenhum número e nenhum hex fora do `:root` |
+| D1 · rótulos Analista e Trade | **Resolvido.** O `rot_perfil` tem `analista` e `trade`. Na linha, no campo Perfil e nas opções, nenhum código de perfil aparece (tela-bc3 §13.4). Fica como 🟢 a ideia de tirar o dicionário do template e levá-lo a uma fonte única no `render` |
+| Rolagem para o lado | **Nenhuma.** Testei 10 estados × 3 tamanhos × com e sem aviso: `scrollWidth = clientWidth` sempre, e nenhuma caixa rola por dentro |
+| Alvos de 44 px no celular | **Todos ≥ 44 px no conteúdo da T-0050:** a linha da caixa de marcar (`.f-item`), "Faróis", "Salvar acesso" (fixo no pé), "Criar", campos e selects. A única exceção é o "Sair" do menu ☰ (31×25). Ele é do `base.html`, que o PR não mexe: fica como anterior à T-0050 (🟢 8) |
+| Painel do Admin | **Igual à v2.** Só "Do perfil", com 5 grupos em colunas. O painel tem 331 px, e o "Salvar acesso" termina a 537 px (573 com o aviso). A página fica em 768 a 1366 e em 1080 a 1920. O Diretor também cabe ("Salvar acesso" a 599 px). O Analista tem o mesmo painel de 331 px, mas está na linha 06 e cai no caso da lista longa (🟢 13) |
+| Painel do Trade | **🟡 C2, abaixo.** "Este perfil ainda não tem farol no site." aparece certo, e a parte "Liberar" traz os 18 faróis |
+| Tamanhos (celular, medidos) | legenda 16/600 · apoio 12/400 · rótulo de grupo 11/600 · nome 14/400 · selo 12,48/700 (o mesmo `.selo` da linha) · botão 14/600. É a escala do manual §5 |
+| "liberado" quebrando de linha | 0 nos painéis Faróis, a 1366, 1920 e 390, mesmo com todas as caixas da parte "Liberar" marcadas |
+| Erro "nenhum farol" | Testei no servidor: a mensagem aparece no `p.erro`, e o painel do 03 volta aberto como ficou (0 caixas marcadas). O `sim-codigo/5-erro-*` mostra o painel fechado. Vale refazer esse PNG, mas o comportamento está certo |
+
+### As diferenças que o autor declarou
+
+- **Aviso "Sem dados ainda…" leva a página a cerca de 772 px:** confere (772 com o painel do 03 aberto). Sem o aviso, a mesma tela fica em 768. É um estado de transição, sem pacote, e o aviso é do `base.html`. **Aceito.**
+- **Pós-venda com Garantias, Devoluções e NCC:** confere. São os faróis que já existem no site, e a lista segue o menu. **Aceito**, mas com os 3 faróis a mais, o painel do Trade cresceu e passou da tela (🟡 C2).
+- **"Sem dados hoje" no menu:** é o comportamento do `main` para farol sem pacote, e não muda no PR. **Aceito.** Em produção, com pacote, some.
+- **"Alterado em" com a data real:** confere ("Alterado em 27/11/2026 07:30 por admin.ficticio"). **Aceito.**
+
+### 🟡 Corrigir antes do merge
+
+#### C1. "Novo usuário" no PC: o formulário se parte em duas colunas, e "Do perfil" cobre o campo Senha
+- **Tela:** Usuários, PC 1366 e 1920, com o "Novo usuário" aberto. Está no próprio `sim-codigo/4-novo-usuario-pc.png`, mas não entrou nas diferenças declaradas. Veja `ux/codigo-a5e723b/antes-novo-pc-1366x768.png`.
+- **O que acontece:**
+  - Usuário, Perfil e Senha ficam espremidos à esquerda, com 165 px de altura cada.
+  - As duas partes ("Do perfil" e "Liberar") sobem para a direita e **cobrem a metade direita do campo Senha**: no ponto em que se clica, o elemento de cima é a parte "Do perfil".
+  - A parte "Liberar" fica com colunas de 110 px, e 5 faróis quebram a linha, com a caixa de marcar de um lado e o nome embaixo: Painel Executivo, Inadimplência, Metas Equipe, Giro de produtos e Divergências.
+  - O "Criar" fica no meio da tela.
+- **Causa:** a regra do painel Faróis `.f-rodape{grid-column:2}` também vale no `form.caixa` do "Novo usuário", que é `display:grid`, e cria nele uma 2ª coluna implícita.
+  - Na simulação, a `.f-partes+.f-rodape{grid-column:1/-1}` desfazia isso, porque o pé vinha logo depois de `.f-partes`.
+  - No código, entre os dois ficam os `div.f-conj` e o `<noscript>`, e a regra deixa de casar.
+  - No celular não acontece, porque a media query põe `.f-rodape{grid-column:1}`.
+- **Regra quebrada:** a simulação v2 aprovada (UX 2: o formulário abre por cima da lista, com os campos numa linha); o checklist "um só estilo por componente"; acessibilidade (um campo coberto por outro elemento).
+- **Correção (1 linha, testada no servidor):**
+  ```css
+  .u-novo-form>.f-rodape{grid-column:1/-1}
+  ```
+- **Medido depois:**
+  - os campos ficam com 38 px, numa linha;
+  - a Senha fica livre;
+  - nenhum farol quebra;
+  - o "Criar" fica à esquerda, a 601 px;
+  - a página fica em 768 (`depois-novo-pc-1366x768.png`);
+  - o celular não muda.
+
+#### C2. Painel do Trade a 1366: o "Salvar acesso" passa da tela
+- **Tela:** Usuários, PC 1366×768, com o painel "Faróis" aberto na linha do Trade (02, a mesma linha da v2). Veja `antes-trade-pc-1366x768.png`.
+- **Medida:**
+  - o painel tem 442 px (na v2, 385);
+  - o "Salvar acesso" termina a **772 px sem o aviso** e a **808 px com ele**;
+  - a página vai a 785 e a 821;
+  - na v2, o "Salvar acesso" ficava a 711 e a página em 768.
+- **Causa:** a lista "Liberar" agora tem 18 faróis, com Garantias, Devoluções e NCC. Nas 3 colunas, a 3ª coluna empilha Vendas e Analista Comercial (11 itens).
+- **Regra quebrada:** a mesma do 🟡 1 da v1: tela-bc3 §1.2 ("cabe numa tela no PC") e os 3 toques (é preciso rolar para salvar).
+- **Correção (testada no servidor):** quando o perfil não tem farol, "Do perfil" vira uma coluna estreita só com a frase, e "Liberar" passa a 4 colunas, só no PC.
+  ```css
+  @media(min-width:701px){
+    .f-partes:has(>.f-perfil>.f-nota:last-child){grid-template-columns:minmax(120px,.22fr) minmax(0,3fr)}
+    .f-partes:has(>.f-perfil>.f-nota:last-child) .f-lib .f-grupos{columns:4}
+  }
+  ```
+  - **Melhor ainda:** o template põe uma classe (ex.: `f-partes-sem-perfil`) quando `p.perfil` está vazio, e a regra usa essa classe, em vez de `:last-child`.
+  - **Atenção:** `:has()` dentro de `:has()` não vale no CSS. A forma `.f-partes:has(.f-perfil:not(:has(.f-grupos)))` é ignorada, e eu a testei.
+- **Medido depois:**
+  - o painel do Trade tem 331 px, a mesma altura dos outros;
+  - o "Salvar acesso" fica a 661 px (697 com o aviso);
+  - a página fica em 768 (`depois-trade-pc-1366x768.png`);
+  - nenhum "liberado" quebra, nem com as 18 caixas marcadas, a 1366 e a 1920;
+  - Vendas, Pré-venda, Pós-venda, Admin e o celular não mudam.
+- **Testei e descartei:**
+  - só as 4 colunas, mantendo "Do perfil" larga: 5 selos "liberado" quebram com tudo marcado;
+  - "Do perfil" em cima e "Liberar" embaixo: o painel fica com 395 px e a página com 774, com o aviso.
+
+### 🟢 Sugestões (não bloqueiam)
+
+11. **Rótulo do campo:** o código manteve "Senha inicial (será trocada no 1º acesso)". A v2 tinha "Senha inicial (trocada no 1º acesso)". No celular, a frase longa ocupa 1 linha, e no PC, depois do C1, também. Pode ficar.
+12. **PNGs do PR:** refazer o `5-erro-*` com o painel reaberto (o servidor já faz isso) e, depois do C1 e do C2, o `4-novo-usuario-pc` e o `7-farois-trade-pc`.
+13. **Os anteriores continuam (8 e 9):**
+    - nas linhas 04 a 07, o painel aberto leva a página a 825, 860, 922 e 987 px, sem o aviso;
+    - é o caso da lista longa da tela-bc3 v2, e não é desta tarefa.
+
+### Resumo para o gerente-projetos
+
+| Sev. | # | Tela | Elemento | Correção | Onde |
+|---|---|---|---|---|---|
+| 🟡 | C1 | Novo usuário, PC | Formulário em 2 colunas; "Do perfil" cobre a Senha; 5 faróis quebram | `.u-novo-form>.f-rodape{grid-column:1/-1}` | `estilo.css` |
+| 🟡 | C2 | Faróis do Trade, PC 1366 | "Salvar acesso" a 772/808 px | Perfil sem farol: "Do perfil" estreita e "Liberar" em 4 colunas (≥ 701 px) | `estilo.css` (+ classe no template) |
+| 🟢 | 11–13 | várias | ver acima | — | PR / backlog |
+
+**Para aprovar:** um commit novo com C1 e C2, mais os PNGs `4-novo-usuario-pc` e `7-farois-trade-pc` refeitos no novo head SHA. Eu meço de novo no servidor.
