@@ -59,4 +59,13 @@
 9. **Tela**: o diff muda o texto visível (UF, nome, "(loja não identificada)", "Crédito não apurado"). Pela regra 10, a simulação em PNG/PDF tem de existir antes do PR. Há `anexos/T-0053/sim/` (c4dd7a7). Esta revisão não conferiu as imagens; isso fica para o `designer-ux`.
 
 ## Testes no head (`pytest tests/ -q`, xvfb, /usr/bin/python3.12)
-RESULTADO_TESTES
+- **1.005 passed, 10 skipped, 2 xpassed, 0 failed.** Rodado arquivo por arquivo, porque a suíte inteira numa só chamada foi derrubada por tempo, com a CPU dividida com outras sessões.
+  - O `test_T0024_lote2_robo_web.py` foi interrompido na 1ª passada e repetido sozinho: 6 passed, 2 skipped.
+  - Nenhuma falha nova. A suíte não tem nenhum teste da RN-GER-019 (🔴2): verde aqui não prova a mudança.
+- Árvore limpa depois dos testes (`git status` vazio no worktree do head). `RELATORIOS/painel_diretor_hist.json` intocado.
+- Comparação base × head: scripts e saídas em `/tmp/claude-0/-home-user/4f3da797-8ad2-51e5-b58d-a720ae0afc4c/scratchpad/T-0053/` (`rev_dump.py`, `rev_cmp.py`, `rev_cmp2.py`, `rev_fretes.py`). Os scripts só leem as bases congeladas e não ficam no repositório.
+
+## Para a próxima revisão (commit novo)
+- Os totais de Fretes e Entregas voltam aos da base (661 notas / R$ 3.255.436; frete R$ 162.789), ou a diferença vem explicada e aprovada pelo po.
+- O cartão "Clientes" de excluídos volta a 399.
+- O teste do `testes` (`test_RN_GER_019_*`) cobre os casos de borda e a igualdade dos cartões por filial.

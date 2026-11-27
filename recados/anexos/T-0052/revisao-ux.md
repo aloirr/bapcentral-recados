@@ -52,3 +52,24 @@ Decisão RD-0063 (a faixa do topo sem os 3 números): **de acordo**.
 
 ## Anexos (dado fictício)
 `ux-resultado-1920.png`, `ux-resultado-1366x768.png`, `ux-por-du-1366x768.png`, `ux-recorte-am-1366x768.png`, `ux-celular-antes.png`, `ux-celular-depois-sugerido.png`.
+
+## Reteste no head 73dbbbe (27/11/2026): aprovado
+
+- Conferi os `sim/depois-*` do po (2878e17, mesma tela) e regerei no **73dbbbe** com a fixture fictícia (`--lang=pt-BR`): Resultado, Produtividade, Por DU e o recorte AM, a 320, 390, 600, 1024, 1366, 1600 e 1920 px.
+- **O 🟡 do celular está resolvido.**
+  - Até 600 px, o topo do cartão fica na altura do conteúdo, e a legenda e a faixa vazias somem (altura 0).
+  - O "Desconto comercial" vai do valor direto ao gráfico, sem o verde vazio.
+  - A legenda longa aparece inteira, sem "…".
+  - Nenhuma largura passa da tela (390 = 390, 320 = 320).
+- **No PC, o alinhamento continua igual.**
+  - O topo tem 138 px e a faixa 78 px em todo cartão.
+  - A faixa e o gráfico começam na mesma altura em cada linha (1366: 310/392, 704/786 e 1098/1180).
+  - A linha da legenda vazia continua reservada.
+- **Legenda (RD-0238):** "projeção do mês" sem número sumiu do Faturamento líquido e dos Pedidos. "Projeção do mês 66" fica, porque tem número próprio. O 🟢 de título repetido está resolvido.
+- **Valor:** 18 px a 320, 20,3 px a 390 e 22 px a partir de 600 (no máximo 22 px, como pediu a marca). Mesmo o "R$ 1.165 mil" fica a 8 px do anel. O 🟢 de valor longo está resolvido.
+- **Recorte por estado no PC:** com `grid-auto-rows:auto`, o cartão baixou de 380 para 196 px (1366).
+- **Marca:** nenhum hex novo em `estilo.css` nem em `painel.html` em relação ao `main`. Só `var(--…)`.
+- 🟢 para depois (não bloqueia):
+  - no recorte, os cartões ainda esticam até encher a tela (296 px a 1920);
+  - `align-content:start` em `body.uma-tela .painel-corpo .rrm-recorte` deixaria cada cartão na altura do conteúdo.
+- Anexos (dado fictício): `ux-reteste-celular-73dbbbe.png`, `ux-reteste-recorte-am-1366-73dbbbe.png`.
