@@ -119,3 +119,153 @@ Vale para **c82ce92**, **134efc8** e **3ffcc06**.
   - modulo-web: RD-0112 (docstring), RD-0114 (comentário), RD-0125 a RD-0128;
   - testes: o arquivo de paridade dos RD-0110, RD-0112 e RD-0114.
 - **Catálogo, recados e diário:** não atualizei o catálogo, não mandei recado e não escrevi no diário, como no parecer anterior. [SUPOSIÇÃO] Quem chamou leva os achados aos donos.
+
+---
+
+# Reteste final (heads novos)
+
+- **Heads:**
+  - rota `modulo-rota/T-0045-visitas-nucleo` @ **8405283** (antes c82ce92);
+  - web `modulo-web/T-0045-visitas` @ **d1e0034** (antes 134efc8);
+  - contrato @ **8208616** (antes 3ffcc06);
+  - teste de paridade: `testes/T-0045-testes` @ **9498312** (`tests/test_T0045_paridade_visitas_web.py`), no mesmo lote.
+- **Leitura:** `git diff` entre os heads, mais a leitura do teste de paridade. O merge do `main` na rota (7ccdc32) fica fora deste reteste.
+- **Numeração:** o maior RD nos anexos era o RD-0128. Os novos vão do **RD-0129 ao RD-0130**.
+
+## 1. Situação
+
+| RD | Situação | Evidência |
+|---|---|---|
+| RD-0110 | **fechado** (com o `testes` no lote) | O `test_T0045_paridade_visitas_web.py` roda `juntar_baixado`, `dia_fechado_no_indice` e `dias_a_baixar` nos 2 módulos, com a mesma tabela: empate, hora sem fuso, UTC, hoje e um intervalo de cerca de 700 dias. O teste da web `test_RN_VIS_002_espelho_…` (web/tests:119) fica como `manter?`: o CI roda o `web/tests` à parte (`ci.yml:56`), sem a raiz, e esse é o único teste do espelho nesse job. Ver também RD-0130 (comentários desatualizados). |
+| RD-0111 | **aberto** | Sem mudança. O `visitas_maxima.plano` (8405283:306-313) continua com o filtro próprio, e não existe `indice_do_pc`. Dono: modulo-robo (`plano`) e modulo-rota (`indice_do_pc`). Se o gerente quiser tirar isso deste lote, precisa registrar a decisão: o achado é média e segura o lote pela regra de liberação. |
+| RD-0112 | **parcial** | **Fechado:** o núcleo agora usa `_FORA_DO_ESPELHO` (8405283:1515), o nome que o site cita (visitas.py:10 e :119). **Aberto:** o teste de paridade não confere a lista. `COLUNAS_PROIBIDAS` só é comparado com um literal no teste da web (web/tests:587). **Falta,** no teste de paridade (testes): `assert web_app.visitas.COLUNAS_PROIBIDAS == vn._FORA_DO_ESPELHO`. O literal do web/tests:587 sai. |
+| RD-0113 | **fechado** | `_abrir_excel` (8405283:743) é usado pelo `ler_espelho` e pelo `filtrar_espelho`. |
+| RD-0114 | **parcial** | **Fechado:** `_REDE` e `TIPOS_ACHADO` no núcleo (8405283:1556-1559). O site tem a mesma ordem (`("email", "cnpj", "cpf", "telefone", "formato")`) e cita o nome certo. **Aberto:** a paridade dos 4 regex e dos tipos não está no teste de paridade. A própria docstring do site diz "até lá, nada prende as cópias" (visitas.py:12). **Falta,** no teste de paridade (testes): `assert {t: r.pattern for t, r in web_app.visitas.RE_PESSOAL.items()} == {t: r.pattern for t, r in vn._REDE}` e `assert web_app.visitas.TIPOS_ACHADO == vn.TIPOS_ACHADO`. |
+| RD-0123 | **fechado** | `_linha_de_cliente` (8405283:756) é a regra única, aplicada dentro do `_eventos_espelho`. O `ler_espelho` e o `filtrar_espelho` não decidem mais sozinhos. O `r"\d{6,8}"` virou `_RX_CODIGO_CLIENTE`, que o `_RX_FORMATO["codigo"]` usa. O ramo `titulo` usa `ev[3].get(i)`. |
+| RD-0124 | **fechado** | `_REDE` + `_na_rede(s, tipos=None)`. O número passa `("cnpj", "cpf", "telefone")`, e a lista ficou uma só. |
+| RD-0125 | **fechado** | A caixa de pausa diz "Desde 27/11 06h06" (sem repetir "Pausado"). A linha que pausou fica só com o selo "Pausou" e o código, e "(motivo acima)" saiu. Sem rodada, a faixa mostra "—". A caixa de rodada em andamento mostra `v.andamento` ("Baixando o dia 26/11 (3 de 9)", "Enviando", "Entrando na Máxima"). `manter?`: "Situação: Baixando" na faixa e "Baixando o dia …" na caixa repetem o verbo, mas a caixa traz o dia e o progresso. |
+| RD-0126 | **fechado** | `TRAVADO` serve ao `title` do botão e aos 2 `ErroVisitas` do `pedir`. `NADA_A_FAZER` ficou "Já estava em dia." |
+| RD-0127 | **fechado** | `visitas.PODEM_PEDIR`/`SO_ADMIN`, usados pelo `main.py` (`PODEM_PEDIR, SO_ADMIN = visitas.PODEM_PEDIR, visitas.SO_ADMIN`) e pelo `render.py:245`. |
+| RD-0128 | **fechado** | `ymd_do_form` usa `edicoes.iso_de_br` e `edicoes.RE_ISO`. (A volta do `type="date"` (N1) deixou o `dia_data` sem uso: RD-0129.) |
+
+## 2. Repetições novas
+
+### RD-0129 · `dia_data` ficou sem chamador
+| Campo | Conteúdo |
+|---|---|
+| Onde | `web/app/visitas.py:162` @ d1e0034. O único uso é `web/tests/test_T0045_visitas.py:651` |
+| Tipo | código (morto) |
+| O que se repete | AAAAMMDD → dd/mm/aaaa. Com o `type="date"` de volta, a tela usa `dia_iso`, e o `de_br`/`ate_br` saiu do `tela()`. O `dia_data` sobra, ao lado do `edicoes.br_data`, que faz a mesma conversão a partir do ISO. |
+| Impacto | manutenção |
+| Severidade | baixa |
+| Proposta | O `dia_data` sai, e com ele o `and visitas.dia_data("20261127") == "27/11/2026"` do teste (web/tests:651). Se precisar outra vez, `edicoes.br_data(dia_iso(ymd))`. |
+| Dono | modulo-web |
+
+### RD-0130 · Comentários que vão ficar desatualizados quando a paridade entrar
+| Campo | Conteúdo |
+|---|---|
+| Onde | `web/app/visitas.py:11-12` ("O teste de paridade (`tests/`, do agente `testes`) AINDA VAI SER CRIADO: até lá, nada prende as cópias.") e `web/tests/test_T0045_visitas.py:584` ("o teste de paridade na raiz compara o texto"; o 9498312 não compara os regex) |
+| Tipo | doc (comentário) |
+| O que se repete | 2 descrições do mesmo teste, que contradizem uma à outra e contradizem o teste real |
+| Impacto | leitura |
+| Severidade | baixa, **só comentário: não segura o lote**, entra no seguinte |
+| Proposta | visitas.py:11-12, **depois:** "O `tests/test_T0045_paridade_visitas_web.py` (testes) prende as cópias." web/tests:584, **depois:** "Os regex, os tipos e as colunas são espelho do `visitas_nucleo` (o teste de paridade da raiz compara)." Isso vale depois de o RD-0112 e o RD-0114 entrarem nele. |
+| Dono | modulo-web |
+
+## Manter
+- **§3.4 do contrato (8208616):** a resposta 422 de dado pessoal aparece no item da conferência e na tabela de respostas. A tabela é o resumo de todas as respostas da rota, no mesmo molde do 413. Manter.
+- **`_RX_CODIGO_CLIENTE`:** é usado uma vez só (`_RX_FORMATO["codigo"]`), e o nome lembra a regra antiga do rodapé. Manter: é estético.
+
+## Resultado do reteste final
+**Não libera.**
+- **Abertos:**
+  - RD-0111 (`plano`/`indice_do_pc`; modulo-robo e modulo-rota);
+  - RD-0112 e RD-0114: faltam 3 asserts no teste de paridade, do `testes`;
+  - RD-0129 (`dia_data` morto; modulo-web).
+- **O RD-0130 não segura o lote** (baixa, só comentário).
+- **Fechados:** RD-0110, RD-0113, RD-0123 a RD-0128.
+
+Vale para **8405283**, **d1e0034**, **8208616** e **9498312**.
+
+---
+
+# Releitura final (5 heads)
+
+- **Heads:**
+  - rota `modulo-rota/T-0045-visitas-nucleo` @ **7531271** (antes 8405283);
+  - robô `modulo-robo/T-0045-plano` @ **35a28dd** (sobre 8405283);
+  - web `modulo-web/T-0045-visitas` @ **b7e37d0** (antes d1e0034);
+  - contrato @ **3a24591** (antes 8208616);
+  - testes `testes/T-0045-testes` @ **fe0ef55** (antes 9498312).
+- **Numeração:** o maior RD nos anexos agora é o RD-0146 (outras tarefas). Os novos vão do **RD-0147 ao RD-0150**.
+
+## 1. Situação
+
+| RD | Situação | Evidência |
+|---|---|---|
+| RD-0111 | **fechado** | `visitas_maxima.plano` (35a28dd:327-334): `dias = vn.dias_a_baixar(indice_do_pc(raiz, de, ate), de, ate, hoje, refazer)`. O filtro próprio saiu. O `tests/test_T0045_plano.py` (fe0ef55) confere que o plano dá o mesmo resultado nas bases congeladas. A forma da correção trouxe uma repetição nova: RD-0147. |
+| RD-0112 | **fechado** | `test_RN_VIS_007_colunas_fora_e_permitidas_do_espelho_batem` (paridade, fe0ef55) compara `COLUNAS_PROIBIDAS` com `vn._FORA_DO_ESPELHO` e as permitidas com o resto do `_COLUNAS_ESPELHO`. |
+| RD-0114 | **fechado** | `test_RN_VIS_007_rede_de_dado_pessoal_igual_na_rota_e_na_web` compara tipos, ordem, `pattern` e `flags` com o `_REDE`, mais uma amostra fictícia. `test_RN_VIS_007_tipos_achado_iguais_e_na_mesma_ordem` compara o `TIPOS_ACHADO`. Os literais do `web/tests:585-587` ficam como `manter?`: o CI roda o `web/tests` à parte (`ci.yml:56`), sem a raiz. |
+| RD-0129 | **fechado** | O `dia_data` saiu do `visitas.py` (b7e37d0) e do `test_formatadores_de_dia`. |
+| RD-0130 | **fechado** | A docstring do site deixou de dizer "AINDA VAI SER CRIADO". O web/tests:584 ("o teste de paridade na raiz compara o texto") agora é verdade. O nome da branch citado na docstring nova está no RD-0150. |
+
+## 2. Repetições novas
+
+### RD-0147 · PC: a leitura "arquivo do dia → hora da baixa" escrita 2 vezes, e um 3º `hoje_manaus`
+| Campo | Conteúdo |
+|---|---|
+| Onde | `visitas_maxima.py` @ 35a28dd: `indice_do_pc` (308-320) e `hoje_manaus` (323-324) × `visitas_nucleo.py` @ 7531271: `dia_fechado(raiz, d)` (149-157). Também `relatorios_nucleo.hoje_manaus` (785) e `atualizar_do_github.hoje_manaus` (210) |
+| Tipo | código |
+| O que se repete | 1. `arq = arquivo_do_dia(raiz, d)` → `if not arq.exists()` → `baixado_em(raiz, f"{d:%Y%m%d}", arq)` → `.isoformat()` como entrada do `dia_fechado_no_indice`/`dias_a_baixar`: está no `dia_fechado` do núcleo, que ainda é chamado em `registros` (452) e no smoke, e no `indice_do_pc` do robô. 2. `hoje_manaus()`, com o mesmo nome e o mesmo papel do `relatorios_nucleo.hoje_manaus`, que já trata a falta de tzdata. |
+| Impacto | manutenção. A leitura do PC para a RN-VIS-002 fica em 2 módulos de 2 donos. O `fechados_pc` do contrato §4.3 (`bap_automation`) seria a 3ª cópia, se não usar a mesma função. |
+| Severidade | média |
+| Proposta | 1. O `indice_do_pc(raiz, de, ate)` vai para o `visitas_nucleo` (modulo-rota), onde já estão `arquivo_do_dia` e `baixado_em`. Lá, `dia_fechado(raiz, d)` passa a ser `return dia_fechado_no_indice(indice_do_pc(raiz, d, d), d)`. No robô, `plano` chama `vn.indice_do_pc(...)`, e a cópia local sai. O `fechados_pc` do `sincronizar_visitas_web` usa a mesma função, `vn.indice_do_pc(raiz, hoje - 40, hoje)`. 2. O `hoje_manaus` local sai, e o `plano` usa `relatorios_nucleo.hoje_manaus()`. O do `atualizar_do_github` fica (`manter?`: o instalador roda sozinho, sem importar os módulos da raiz). |
+| Dono | modulo-rota (mover a função e o `dia_fechado`) · modulo-robo (`plano` e `hoje_manaus`) |
+
+### RD-0148 · O contrato §3.6 copia os 8 regex do `_RX_FORMATO`
+| Campo | Conteúdo |
+|---|---|
+| Onde | `.coord/contratos/visitas-nuvem.md` @ 3a24591, §3.6, linha "Lista de clientes (colunas)" |
+| Tipo | doc |
+| O que se repete | os regex de `data`, `ord`, `hora`, `codigo`, `n_pedido`, `numero` e `sn` são o `visitas_nucleo._RX_FORMATO` escrito de novo, com o SHA `7531271` no texto. O §5 já adotou o outro caminho ("a fonte única é a web; o contrato só aponta para as constantes", RD-0120). A mudança desta rodada (ORD de 3 para 6 dígitos, ATEND com sinal) teve de ser feita no código e no contrato. |
+| Impacto | manutenção. Já houve divergência no caminho: o 8932dcd dizia "até 5 dígitos", o código diz `^\d{1,6}$`. |
+| Severidade | média |
+| Proposta | Coluna "Formato conferido", **depois:** "Formato por coluna: `visitas_nucleo._FORMATO_COLUNA` (coluna → formato) e `_RX_FORMATO` (formato → regex), a fonte única, como o §5 faz com a web. Calibrado sem achado nos 1.622 Espelhos reais." Sem os regex e sem o SHA. O mesmo vale para o "Varredura do que sobrou", que passa a apontar para o `visitas_nucleo._REDE`. |
+| Dono | engenheiro-software |
+
+### RD-0149 · O arquivo de paridade repete asserts que só olham o núcleo
+| Campo | Conteúdo |
+|---|---|
+| Onde | `tests/test_T0045_paridade_visitas_web.py` @ fe0ef55, em `test_RN_VIS_007_colunas_fora_e_permitidas_do_espelho_batem` e `test_RN_VIS_007_tipos_achado_iguais_e_na_mesma_ordem` × `tests/test_T0045_visitas_nucleo.py:125` (`permitidas_batem_com_as_tabelas_do_ler_espelho`) e `:234` (`nomes_que_o_site_espelha`) |
+| Tipo | teste |
+| O que se repete | `fora == ("KM DIST", "BONIF", "OBSERVACAO")`, "permitidas = colunas do `ler_espelho` − fora", "cabeçalho = `_ROTULOS_ESPELHO`" e "`TIPOS_ACHADO` = rede + formato" estão nos 2 arquivos. Nenhum desses asserts compara o site com o núcleo. |
+| Impacto | manutenção (uma mudança na lista exige editar 2 testes) |
+| Severidade | baixa |
+| Proposta | O arquivo de paridade fica só com as comparações site × núcleo: `COLUNAS_PROIBIDAS == _FORA_DO_ESPELHO`, `TIPOS_ACHADO == TIPOS_ACHADO`, a rede e a parte da RN-VIS-002. As 4 propriedades só do núcleo ficam no `test_T0045_visitas_nucleo.py`, onde já estão. |
+| Dono | testes |
+
+### RD-0150 · Um comentário e 2 títulos de teste que já nascem desatualizados
+| Campo | Conteúdo |
+|---|---|
+| Onde | `web/app/visitas.py:12-13` @ b7e37d0: "(`tests/`, do agente `testes`, branch `testes/T-0045-testes`)". `tests/test_T0045_visitas_nucleo.py:265` `…_formato_aceita_ord_de_5_digitos_…` e `:289` `…_ord_prev_de_5_digitos_…` @ fe0ef55 |
+| Tipo | doc (comentário) · teste (título) |
+| O que se repete | 1. O nome da branch deixa de valer no merge. O que fica é o arquivo. 2. Os títulos dizem "5 dígitos", mas a regra é `^\d{1,6}$` (o próprio teste aceita 12345 e recusa 1234567). |
+| Impacto | leitura |
+| Severidade | baixa, **só comentário e título de teste: não segura o lote** |
+| Proposta | Comentário, **depois:** "O `tests/test_T0045_paridade_visitas_web.py` prende as cópias ao núcleo." Títulos, **depois:** `test_RN_VIS_007_formato_aceita_ord_de_ate_6_digitos_e_atend_negativo` e `test_RN_VIS_007_ord_prev_de_ate_6_digitos_e_atend_negativo_sem_achado_no_espelho`. |
+| Dono | modulo-web (comentário) · testes (títulos) |
+
+## Manter
+- **Teste unitário e de ponta a ponta do ORD/ATEND** (`test_T0045_visitas_nucleo.py:265` e `:289`): manter. Um confere a função e o outro o `filtrar_espelho` inteiro.
+- **Os 2 testes de rodapé** (`:197`, título de página na 1ª coluna, e `:273`, "Total" na coluna `CODIGO`): manter, porque são casos diferentes.
+
+## Resultado da releitura final
+**Não libera.**
+- **Fechados:** RD-0111, RD-0112, RD-0114, RD-0129 e RD-0130.
+- **Novos que seguram o lote:**
+  - RD-0147 (`indice_do_pc` × `dia_fechado` e o 3º `hoje_manaus`; modulo-rota e modulo-robo);
+  - RD-0148 (os regex do `_RX_FORMATO` copiados no contrato; engenheiro-software);
+  - RD-0149 (asserts só do núcleo repetidos na paridade; testes).
+- **Não segura:** RD-0150 (comentário e títulos).
+
+Vale para **7531271**, **35a28dd**, **b7e37d0**, **3a24591** e **fe0ef55**.

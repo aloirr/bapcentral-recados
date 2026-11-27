@@ -106,3 +106,107 @@ Este reteste confere as correções contra o parecer `revisao-codigo-codigo.md`.
 ## Pronto quando
 - **Rota:** o R9 volta ao critério antigo e ganha o teste das 3 linhas fictícias. Revisão nova no head novo.
 - **Web:** a W12 é resolvida (sai do PR ou vai com simulação); a W11 é entregue pelo `testes`. Revisão nova no head novo, que o gerente vai avisar.
+
+---
+
+# Reteste final, 27/11/2026: rota 84052835 · web d1e0034 · contrato 8208616
+
+| Branch | Head | Parecer |
+|---|---|---|
+| `modulo-rota/T-0045-visitas-nucleo` | `84052835` | **1 🔴 · 2 🟡** |
+| `modulo-web/T-0045-visitas` | `d1e0034f` (web 0.6.0) | **aprovado no código** (sem 🔴 nem 🟡; o W2, simulação, fica com o gerente) · 2 🟢 |
+| `engenheiro-software/T-0045-contrato-v1-1` | `8208616d` | confere com a web; falta ajustar a tabela de formatos (R12) |
+
+**Conferências gerais:**
+- `verificar --por-commit` OK nas duas.
+- `VERSAO = 27`.
+- `compileall` limpo.
+- Testes:
+  - web: 461 passed;
+  - paridade `tests/test_T0045_paridade_visitas_web.py` (testes 9498312): 4 passed com estes heads de rota e web;
+  - `tests/test_T0045_visitas_nucleo.py`: **1 failed**, 16 passed.
+
+## Rota 84052835
+
+**O R9 está resolvido no PC.** Com o critério antigo, o `ler_espelho` dá o mesmo resultado do main nos 1.622 Espelhos reais (13.571 = 13.571 linhas, 0 arquivos diferentes). As 3 linhas fictícias voltam a contar (main 4/4, 84052835 4/4).
+
+**🔴 R11 — o teste do lote falha, então o CI fica vermelho.**
+- O teste que falha é `test_RN_VIS_007_rodape_no_meio_da_lista_nao_gera_falso_achado`: a linha `[None, "Total: 12", None]`, com o "total" na coluna CODIGO, volta a ser lida como cliente e dá `{'coluna': 'CODIGO', 'tipo': 'formato'}`.
+- **Correção (conferida numa cópia, sem alterar a branch):**
+
+  ```python
+  def _linha_de_cliente(reg):
+      return bool(_texto(reg.get("cliente"))
+                  or _RX_CODIGO_CLIENTE.fullmatch(_texto(reg.get("codigo"))))
+  ```
+
+  Com ela: 17 passed; o `ler_espelho` fica igual ao do main nos 1.622 reais; e as 3 linhas do R9 (só nome, código de 5 dígitos, código decimal) continuam contando, porque todas têm nome.
+
+**🟡 R12 — falso `formato` nos dados reais: a nuvem pausaria quase todo dia.**
+- Rodei o `filtrar_espelho` nos 1.622 Espelhos reais, contando só os achados (sem valor): **146 arquivos (9%) teriam achado**. São dois casos:
+  - `ORD PREV`, 439 células no formato `99999` (5 dígitos, mascarado);
+  - `ATEND`, 19 células no formato `-99:99:99` (duração negativa).
+- Nenhum dos dois é dado pessoal. Mas com cerca de 15 vendedores por dia, quase todo dia teria um Excel com achado, o que dá `DADO_PESSOAL` e pausa (RN-VIS-007). Isso vale desde o `c82ce92`; eu não tinha rodado o filtro nos dados reais nos retestes anteriores.
+- **Correção:**
+  - contrato §3.6, tabela de formatos (engenheiro-software; formato não é coluna permitida, então é v1 com aviso): `ORD *` até 5 dígitos; `INICIO`, `FIM`, `ATEND` e `PER` com sinal opcional;
+  - `_RX_FORMATO` (modulo-rota): `"ord": ^\d{1,5}$` e `"hora": ^-?\d{1,3}:\d{2}(:\d{2})?$`;
+  - um teste (testes) que rode o filtro numa fixture com esses 2 formatos e exija `achados == []`.
+- **Pronto quando:** o filtro der 0 achados nos 1.622 reais.
+
+**🟡 R13 — o "teste das 3 linhas" do R9 não está em branch nenhuma.** Não está em `testes/T-0045-testes` (9498312), e a rota não tem teste. Dono: testes. O teste deve conferir que linha só com o nome, com código de 5 dígitos e com código decimal entram no `ler_espelho` e no `ler_espelho(destino)`.
+
+## Web d1e0034
+- **W12 fechado:** `editar.html` e `test_T0021_edicao.py` estão iguais ao main (voltou o `type=date` com `min`/`max`), e com isso a W13 também sai.
+- **W11:** o teste de paridade existe (testes 9498312) e passa. Ele cobre o índice: empate, sem fuso, hoje e intervalo.
+- **🟢 W14:** a paridade ainda não prende os regex, o `TIPOS_ACHADO` nem o `COLUNAS_PROIBIDAS` × `_FORA_DO_ESPELHO`. Vale acrescentar ao mesmo arquivo de paridade.
+- **🟢 W15:** a docstring de `web/app/visitas.py` diz que o teste de paridade "AINDA VAI SER CRIADO". Ele já existe; atualizar no próximo commit.
+- O resto confere: o espelho bate com o núcleo no empate; a bomba de 200 membros dá 413 `DESCOMPRESSAO_TETO` na hora; o diagnóstico fica em `<details>`; o `PODEM_PEDIR`/`SO_ADMIN` é uma constante só.
+
+---
+
+# Releitura final antes dos PRs, 27/11/2026
+
+| Branch | Head | Parecer |
+|---|---|---|
+| `engenheiro-software/T-0045-contrato-v1-1` | `3a245916` | **aprovado** |
+| `modulo-rota/T-0045-visitas-nucleo` | `75312711` | **aprovado** |
+| `modulo-web/T-0045-visitas` | `b7e37d09` | **aprovado no código** (o W2, simulação, continua com o gerente) |
+| `testes/T-0045-testes` | `fe0ef55f` | **aprovado** |
+| `modulo-robo/T-0045-plano` | `35a28dd1` | **🟡 R14**: o código está aprovado, mas a branch carrega o `visitas_nucleo.py` antigo |
+
+**Conferências gerais:**
+- `verificar --por-commit` OK nas 5 branches.
+- `VERSAO = 27`.
+- `compileall` limpo.
+- Testes, na árvore combinada (rota 7531271 + web b7e37d0 + `visitas_maxima.py` 35a28dd + `tests/` fe0ef55):
+  - `test_T0045_visitas_nucleo.py`, `test_T0045_paridade_visitas_web.py` e `test_T0045_plano.py`: **33 passed**;
+  - web: **461 passed**.
+
+## Dados reais (bases congeladas; só contagens, nenhum valor impresso)
+
+| Conferência | Resultado |
+|---|---|
+| `ler_espelho` main × 7531271 nos 1.622 Espelhos | 13.571 = 13.571 linhas, **0** arquivos diferentes: o PC não perde visita |
+| `filtrar_espelho` 7531271 nos 1.622 Espelhos | **0** achados: o R12 fechou (`ORD` até 6 dígitos, hora com sinal) |
+| As 3 linhas fictícias do R9 (só nome, código de 5 dígitos, código decimal) | main 4/4, 7531271 4/4 |
+| `plano` main × 35a28dd na pasta `RELATORIOS` (80 casos, com e sem `refazer`, 484 dias) | **idêntico** |
+
+## Fechados
+- **🔴 R11:** a regra única ficou `cliente não vazio ou código de 6 a 8 dígitos`. Teste: `test_RN_VIS_007_rodape_total_na_coluna_codigo_nao_gera_achado`.
+- **🟡 R12:** o contrato §3.6 traz a tabela de formatos igual ao `_RX_FORMATO`. Testes: `test_RN_VIS_007_formato_aceita_ord_de_5_digitos_e_atend_negativo` e `..._sem_achado_no_espelho`.
+- **🟡 R13:** `test_RN_VIS_007_linhas_so_nome_codigo_curto_e_decimal_continuam`.
+- **🟢 W14:** a paridade agora cobre a rede de dado pessoal, o `TIPOS_ACHADO` e o `_FORA_DO_ESPELHO`/permitidas.
+- **🟢 W15:** a docstring foi corrigida, e o `dia_data` sem uso saiu.
+- **R5 (o `plano` pela regra única):** o `plano` usa `vn.dias_a_baixar(indice_do_pc(...))`, com `hoje` de Manaus. Testes: `test_RN_VIS_002_plano_igual_nas_bases_congeladas`, `..._sem_hoje_usa_manaus`.
+
+## 🟡 R14 — `modulo-robo/T-0045-plano` partiu da rota antiga
+- A branch traz os commits da rota até 8405283. O `visitas_nucleo.py` dela tem o critério de linha e o `_RX_FORMATO` **anteriores** ao 7531271 (`git diff origin/modulo-rota/T-0045-visitas-nucleo origin/modulo-robo/T-0045-plano -- visitas_nucleo.py`).
+- Depois do squash da rota no main, o PR do robô vai dar conflito nesse arquivo ou, se o conflito for resolvido errado, **desfazer o R11 e o R12**. Também fere o "um PR por dono", porque leva commits do modulo-rota.
+- **Pronto quando:** depois do merge da rota, o modulo-robo faz merge do `origin/main` na branch dele (sem rebase do main), e `git diff origin/main...origin/modulo-robo/T-0045-plano --stat` mostra **só** `visitas_maxima.py`. Revisão nova nesse head.
+
+## Ordem de merge
+1. **contrato** (`3a24591`)
+2. **rota** (`7531271`)
+3. **web** (`b7e37d0`), depois da simulação aprovada pelo po (W2). Pela ADR §9, a web vai ao ar antes da parte do PC.
+4. **robô** (`35a28dd`), só depois do R14: atualizado sobre o main, e com diff só no `visitas_maxima.py`.
+5. **testes** (`fe0ef55`) por último. A paridade importa `web/app/visitas.py` e o `plano` do robô, então o CI dessa branch tem de ficar verde depois de um merge do main com os 4 anteriores.
