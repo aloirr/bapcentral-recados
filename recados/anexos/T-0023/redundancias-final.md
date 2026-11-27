@@ -351,3 +351,52 @@ Ele é do `testes`. É uma frase do doc que ficou velha quando o contrato 0b48e1
 | contrato | `0b48e12` |
 | web (já no main) | `9e53432` |
 | núcleo (já no main) | `9796772` |
+
+---
+
+# Reteste 3 · testes 4a135c2 (corretor-redundancias, 27/11/2026)
+
+## Escopo
+- **Head do testes:** `testes/T-0023-testes` `4a135c2bc88904e1f7c08a84c004469e6729c3d1`.
+- **Delta `d17632a..4a135c2`:**
+  - f6bf862 (RD-0171);
+  - 4a135c2 (rodada 7, no doc e no diário);
+  - 6c45985 (merge do main ed324ca, com a web, o núcleo e a ponte da T-0023, mais a T-0036 e a T-0045).
+- **Main:** `4fc64297c3f0d164bf9be8ef310bbfad430f1aa6`, com a T-0036 web (#158), a T-0037 (#164) e o quadro (#162).
+  - O `git merge-tree` do main com o testes (4a135c2), com o robô (7f0a2cf) e com o contrato (7668126, que é o 0b48e12 + merge do main) não dá conflito.
+  - O PR do contrato, contra o main, segue com o mesmo conteúdo: `relatorio.md` +14 −4 e o diário.
+
+## Resultado: **libera**
+- Não há nenhum achado em aberto neste lote.
+- **Fora do lote:**
+  - o RD-0139 e o #105, que vão no PR 2 de faróis;
+  - o RD-0167, que virou a T-0049.
+
+| ID | Situação | Evidência |
+|---|---|---|
+| RD-0171 | **fechado** | `docs/testes/T-0023.md` §4.4, 1º item: "resolvido no contrato §10.9.1 (0b48e12, fonte da verdade), que separa a montagem do pacote da aplicação da edição. Teste: `test_RN_GER_012_o_max_vem_do_nucleo_e_a_spec_diferente_nao_vai`." Sumiram a frase "descreve outro momento" e a citação do 077ef26. O 2º item ("baixado em" das Garantias, pergunta ao po) é outro assunto e fica |
+
+## O delta, sem repetição nova
+- **f6bf862:** só os 2 itens do §4.4.
+- **4a135c2:** a rodada 7 entra como "vale esta" no topo do doc, numa coluna nova da tabela do §1 e numa linha nova do diário.
+  - As rodadas anteriores ficam como histórico, cada uma uma vez só. É o mesmo formato que este parecer já aceitou nas rodadas 1 a 6.
+  - Nenhum teste mudou (`tests/` sem diff fora do merge).
+- **6c45985:** só o main. Os arquivos de fora (`painel_farol.py`, `relatorios_nucleo.py`, web, visitas, contratos) entraram pelo main, e os PRs deles já passaram por revisão.
+
+## Para o lote seguinte (não segura este)
+- Depois do merge do robô, saem:
+  - o ramo `else ba.MOTIVO_TEXTO_WEB` e o comentário "no main de hoje" da ponte do `test_T0021`, que já está no main (#153);
+  - os `skipif` "núcleo sem … (f0af112)" e "robô da T-0023 v2 ainda não entrou" dos arquivos da T-0023, que viram código morto.
+
+## Validade
+Vale para estes heads:
+
+| Branch | Head |
+|---|---|
+| testes | `4a135c2` |
+| robô | `7f0a2cf` |
+| contrato | `7668126` (conteúdo do PR = 0b48e12) |
+| web, já no main | `9e53432` |
+| núcleo, já no main | `9796772` |
+
+Um head novo pede reteste.

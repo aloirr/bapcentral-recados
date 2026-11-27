@@ -101,3 +101,45 @@
 ## Para o re-teste
 
 Commit novo com os 🟡 1 a 4 corrigidos e a prova do 🟡 3 registrada. Os testes do 🟡 5 entram no CI, ou o gerente registra a decisão de esperar o item 9. Depois, novo pedido de revisão com o head SHA.
+
+---
+
+# Reteste no head `ed640e12afe818a746cc57ebfbb5b1bb4db3a32b` (27/11/2026)
+
+Delta `11b24fc..ed640e1`: 1 commit (`T-0045: correcoes da revisao…`, `Agente: modulo-robo`), só em `bap_automation.py` e `visitas_maxima.py`.
+
+## Veredito no ed640e1
+
+**Aprovado: 0 🔴 e nenhum 🟡 aberto no código.** Os 🟡 1 a 4 estão fechados. O 🟡 5 (testes no CI) foi passado ao `testes` no item 9 da ADR 0004 §9, por decisão do gerente-projetos: não é falha deste código, mas fica como condição (ver abaixo).
+
+## O que rodei (cópia fora do repositório, venv 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall -q visitas_maxima.py bap_automation.py` | ok |
+| `pytest tests/` inteiro (branch + os `test_T0045_*` do `main`) | **691 passaram, 2 xpassed**, saída 0 |
+| `test_T0021_edicao_web_robo` + `test_T0045_*` | 63 passaram |
+| `cmp_edicoes.py` | TUDO IGUAL (7 cenários): as edições continuam sem mudança |
+| `visitas_web.py` | TUDO OK (18) |
+| `sonda2.py` do autor | TUDO OK (16) |
+| `cmp_botao.py` | 30 iguais e 1 "DIFERE": o caso `fase navegador`, que a correção do 🟡 2 tirou de propósito. O comportamento novo (`_abrindo` → `NAVEGADOR_FALHOU`/`inicio`) é provado no `sonda2.py` |
+| Minhas sondas `s1.py`/`s2.py` | o índice do PC fica em 10h00 e o `fechados_pc` manda 10h00. `…/home?t=abOTPx9` + "Termos de uso" → `None`. Com `equipe` torta, o lote vira `erro` e a fila anda (2 recusadas na 1ª volta; as voltas seguintes não repetem) |
+| `verificar --por-commit 0f3106a..ed640e1` | OK, 3 commits, nenhuma violação |
+| `git merge-tree origin/main(e1d80a8) ed640e1` | sem conflito |
+| `bap_dados.VERSAO` | 27 |
+| Arquivos da branch | os 2 `.py`. Nada versionado em `RELATORIOS/`, nas bases, nas configs ou nos dados digitados |
+
+## Os 🟡 do parecer anterior
+
+1. **Fechado.** `_anotar_maior_visitas_web` (`bap_automation.py`) chama `vn.juntar_baixado` (a regra do núcleo, sem cópia): a hora do PC nunca recua e, no empate, vale a nuvem. Vale para o dia e para a chave do mês. A chave `AAAAMM` passa bem pelo `juntar_baixado`, que não filtra o formato.
+2. **Fechado.** O `rodar()` começa em `inicio`. A falha ao abrir (`_abrindo`) vira `NAVEGADOR_FALHOU` com fase `inicio`, que está em `FASES` e que o site aceita no `progresso` e no `fim`. O `FASES` do robô é igual ao de `web/app/visitas.py` (`sonda2.py`).
+3. **Fechado no código.** O regex de verificação olha só o `urlparse(url).path`. O captcha conta só se estiver visível (60×40 ou mais, `visibility`/`display`/`opacity`), fora do `.grecaptcha-badge`, e sem os seletores genéricos `[class*]`/`[id*]`. A prova numa rodada real ficou para o diagnóstico (decisão do gerente); ver 🟢 R1.
+4. **Fechado.** Só `PermissionError`/`OSError` deixam o lote `pendente`. O resto vira `erro`/`dia` (motivo da lista do §4.3), a fila anda e o site tira a parte da nuvem do dia.
+5. **Passado ao item 9 (`testes`) pelo gerente.** Condição: os testes do §4.4 (o laço nas 2 rotas, RN-VIS-002 no índice, 404 da web antiga, validação do lote, `classificar_login`, `codigo_da_excecao`) entram no `main` **antes do item 10** (`render.yaml`).
+
+## 🟢 novos (não bloqueiam)
+
+- **R1. A instalação no PC vem antes do diagnóstico.** Pela regra 11, o `entrar` novo chega ao botão do PC na rotina das 06h30 seguinte ao merge, antes do diagnóstico no Render. Vale o modulo-robo acompanhar o primeiro "Atualizar visitas" do PC depois do instale (login ok), ou pedir uma rodada com "Mostrar o navegador".
+- **R2. Sem pista no log quando o lote dá `erro`/`dia`.** Na exceção não prevista, o log só diz "N recusada(s)". O comentário em `_aplicar_lote_visitas_web` fala em "o log só tem a classe", mas a classe não aparece. Uma linha `Visitas web: erro ao montar o dia (<Classe>)` ajuda a diagnosticar, sem dado pessoal.
+- **R3. URL com fragmento.** O `pronto()` agora ignora o fragmento: um login com rota em hash (`#/login`) seria lido como "ok" na hora. A Máxima usa `/login` no caminho (`URL_LOGIN`), então hoje não há efeito. Fica a nota.
+- Os 🟢 1 a 10 do parecer anterior continuam como sugestões.

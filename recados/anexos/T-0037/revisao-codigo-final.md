@@ -260,3 +260,104 @@ Correção:
 7. Depois, uma tarefa do testes torna o `pl_fretes` obrigatório na trava e tira o `_RIDS_POR_PARTES_WEB`.
 
 Cada PR precisa de CI verde no próprio head.
+
+---
+
+# Rodada da web: `modulo-web/T-0037-fretes` b2845e6 (web 0.9.0), 27/11/2026
+
+Revisor: revisor-codigo. Pedido inicial: bd057b7. O gerente avisou do head b2845e6 durante a revisão. O delta é só a `web/tests/fretes_fixture.py` (o `_rotulo_sem` passa a espelhar o robô 4370d2d). **O parecer vale para o b2845e6.**
+
+## Veredito
+
+**Sem 🔴. Há 1 🟡 no b2845e6 e 1 🟡 que vale para o head do merge com o #158.** O merge não pode ser feito como está, porque o #158 entra antes e cria um head novo. Esse head pede releitura.
+
+## O que foi conferido
+
+**Testes**
+- `python -m pytest web/tests -q`, rodado da raiz como no CI, no b2845e6: **537 passed**, sem falha.
+- `compileall` OK.
+- No bd057b7, a mesma suíte rodada de dentro de `web/` cai no `fretes_fixture.py:146`, com `ModuleNotFoundError: relatorios_nucleo`. Da raiz, passa. Ver 🟢 S4.
+
+**Fixture × robô**
+- Fiz uma comparação executável: `bap_automation.blocos_resumo_fretes_web` e `_rotulo_sem_fretes_web` do **robô 4370d2d** contra `fretes_fixture.blocos_resumo_web` e `_rotulo_sem`, com a mesma entrada.
+  - Resultado: **iguais**, nos blocos e nas frases.
+  - Os rótulos foram conferidos em 8 casos: "SERRA BONITA / ", "(sem) / PA", "(sem) / ", "X /", UF "(sem)" e `None`, e TRANSPORTADORA "(sem)" e "A / ".
+- Rodei também, ponta a ponta, o `selecionar_farol_web("pl_fretes", r)` do robô 4370d2d.
+  - O painel sai igual ao `farol_fretes()["painel"]["blocos"]` da fixture: 5 blocos (barras, 3 tabelas e insights).
+  - O `insights_painel` é igual.
+  - A única diferença é o título do gráfico, que eu mesmo inventei na entrada.
+- Contra o af321b0: o delta do robô af321b0..4370d2d é só a barra solta da cidade. O bd057b7 espelhava o af321b0 e o b2845e6 espelha o 4370d2d.
+
+**Tela renderizada** (cliente de teste, `/farol/pl_fretes`, admin e diretor)
+- Aparecem "Por UF (NOV/26)", "Por cidade (NOV/26)" e "Por transportadora (NOV/26)", as 3 linhas TOTAL, "Resumo gerencial", as 2 frases (uma vez só, sem repetir) e os rótulos "Sem UF", "Sem cidade / MA" e "SERRA BONITA" sem a " /".
+
+**Grade × contrato** §10.12.3 (`engenheiro-software/T-0037-desenho` 558b22f)
+- `tabelas.GRADE[("pl_fretes","Notas com frete")]` tem exatamente as 9 colunas do contrato, na mesma ordem: NF · CLIENTE · CIDADE · UF · VLR FRETE · ETAPA · TRANSPORTADORA · ENTREGAR ATÉ · ENTREGUE.
+- Também batem com o contrato: o `cel` (NF, CLIENTE, vazio, VLR FRETE) e os `blocos` (Nota: DATA PED., DATA NF, FILIAL, VLR NF · Entrega: SLA ENTREGA, RESPONSÁVEL).
+- Também batem: as abas curtas (Notas, UF, Cidade, Transportadora), a busca "Buscar NF ou cliente" e as 16 colunas de "Notas com frete".
+
+**Nenhum lado perdeu comportamento** (diff contra o main c0f6969)
+- O diff só acrescenta. As exceções são 4 trechos, e todos mantêm o comportamento anterior:
+  - **`Fila.situacao`** foi refeita com `_alvos` e `_junta` (`edicoes.py:618`). Para um registro do próprio rid, ela dá o mesmo resultado de antes. As visitas da T-0045 não têm lugar em `IRMAOS`, então nada muda para elas.
+  - **Efeito novo, que é o desejado** (desenho §4.4): uma edição em "Entregas" também marca a linha de mesma chave em "Pendências dos meses anteriores". As duas editam a mesma linha da aba ENTREGAS. A Devolução fica fora.
+  - **`_cols_esperadas(..., rid)`**: o `COLUNAS_RID` passa a ter prioridade. Antes, o mesmo acontecia no `_colunas_erro`, que é o único chamador.
+  - **`dica_busca`**: para um farol que não é livre, só muda quando há entrada em `DICA_BUSCA`. A única entrada desse tipo é `("pl_fretes","Notas com frete")`.
+- **Edição da T-0023 só do admin:** `main.py` só ganhou o `msg_sem_chave`. O `test_RN_GER_012_so_o_admin_edita_e_gerente_e_posvenda_veem` (403 no GET e no POST do editar) e os testes da T-0023 passam.
+
+**Dado pessoal, protegidos e donos**
+- O diff não tem CNPJ, e-mail, telefone nem segredo. A fixture usa só "CLIENTE TESTE nn" e "MOTORISTA FICTICIO n", com cidades e transportadoras inventadas. As frases e os blocos do Resumo só levam UF, cidade e transportadora.
+- O diff não toca `bap_dados.py` (a VERSAO continua 27), nenhuma `.json`, nenhum `_EDICOES_POS_VENDA`, `_NCC`, `_GARANTIAS` ou `_AUTORIZACOES`, nem PNG.
+- `verificar modulo-web --base origin/main`: OK, 14 arquivos. `--por-commit`: OK, 12 commits, todos com `Agente: modulo-web`.
+
+## 🟡 Corrigir antes do merge
+
+**Y5 — b2845e6: nenhum teste da web cobre o Resumo do Fretes.**
+- O que esta rodada mudou foi o Resumo da fixture: o espelho do robô e a barra solta. Mas nenhum teste da web lê o Resumo.
+  - O `test_RN_GER_014_diretor_so_o_resumo` (`web/tests/test_T0037_fretes.py:61`) só confere o status 200.
+  - Por isso a suíte deu 537 tanto antes quanto depois do b2845e6.
+- O Resumo é tudo o que o Diretor vê do Fretes (RN-GER-014).
+- **Correção:** um teste `test_RN_GER_014_...` ou `test_RN_POS_009_...` em que o diretor abre `/farol/pl_fretes` e encontra:
+  - os 3 títulos "(NOV/26)";
+  - um TOTAL igual ao cartão "Notas com frete" (9 notas, RN-POS-009);
+  - as 2 frases do "Resumo gerencial", uma vez cada;
+  - "SERRA BONITA" sem " /".
+- Eu conferi tudo isso à mão (veja acima). Falta deixar no teste.
+
+**Y6 — head do merge com o #158 (`modulo-web/T-0036-analista` 8b02ebe, web 0.8.0): conflito em 5 arquivos e 1 teste que quebra em silêncio.**
+
+Simulei o merge do b2845e6 sobre o 8b02ebe, que já contém o main c0f6969.
+- **Conflitos de texto:**
+  1. `web/app/__init__.py`: 0.8.0 contra 0.9.0. Fica 0.9.0.
+  2. `web/app/render.py`, no `FAROIS`: o #158 passou a usar `LEITURA_GERAL = ("admin","gerente","analista")`. O certo é `"pl_fretes": ("Farol de Fretes", LEITURA_GERAL + ("diretor", "pos_venda"))`.
+  3. `web/app/render.py`, no `GRUPOS_MENU`: fica o lado do #158 (com Analista Comercial, Trade e `grupos_na_ordem`), com o `pl_fretes` acrescentado ao fim do Pós-venda.
+  4. `web/app/tabelas.py`, no `VE_TABELAS`: `"pl_fretes": render.LEITURA_GERAL + ("pos_venda",)`.
+  5. `web/app/tabelas.py`, no bloco do `_l`/`COLUNAS_RID` da T-0036: entram os dois lados, ou seja, o bloco do #158 e depois o `_RESUMO_FRETES`.
+  6. `web/app/tabelas.py`, na docstring do `_cols_esperadas` e na mensagem do `validar`: fica o lado do #158. Os dois lados já tinham feito a mesma prioridade do `COLUNAS_RID`.
+  7. `web/tests/test_T0023_posvenda.py` e `web/tests/test_T0035_pacote_por_farol.py`: 0.9.0.
+- **Sem conflito de texto, mas quebra:** `web/tests/test_T0036_analista.py:352` (`test_T0036_versao_nova_no_saude` confere `VERSAO == "0.8.0"`). Precisa ir a 0.9.0.
+- **Resultado:** com essa resolução, `pytest web/tests` dá **588 passed e 1 failed**, e a falha é só esse teste da versão.
+- **Por que LEITURA_GERAL é obrigatório, e não só preferível:**
+  - O `test_RN_GER_017_perfis_analista_e_trade` (`test_T0036_analista.py:62-66`) exige o analista em todo `FAROIS`.
+  - A RN-GER-017, que já está no main, diz que "o analista lê como o gerente: todos os faróis e abas, menos a edição".
+  - A tupla explícita da T-0037, que é a mesma do §10.12.5, derruba esse teste.
+- **O que falta:**
+  - (a) No head do merge, um teste da T-0037 em que o analista vê o Resumo e as 4 abas e não edita (403 no editar, RN-GER-012).
+  - (b) A §10.12.5 do contrato (558b22f) ganha a linha `analista` (Resumo sim, as 4 abas, não edita) e o `render.FAROIS[...]` com `LEITURA_GERAL`. O dono é o engenheiro-software, e isso entra no mesmo lote da releitura do desenho depois do #158/#160.
+
+## 🟢 Sugestões
+
+- **S1.** `web/tests/fretes_fixture.py:34`: o comentário diz "nota sem cidade (UF PA)". A nota 1 é MA (`UFS[1]`), e o Resumo mostra "Sem cidade / MA".
+- **S2.** `web/app/tabelas.py:1045`: o comentário diz "10 colunas na grade". São 9, mais a coluna Editar, como diz a própria linha mais abaixo.
+- **S3.** `web/app/tabelas.py` / `test_T0037_fretes.py:145`: o teste confere `<= 10` e as editáveis. Fixar a tupla exata do §10.12.3 evita que a grade se separe do contrato (é a sugestão de contrato da rodada anterior).
+- **S4.** `web/tests/fretes_fixture.py:146`: é o 1º teste da web que importa um módulo do PC (`relatorios_nucleo`, que só usa a biblioteca padrão). Ele só passa rodado da raiz, como no CI. Um `sys.path` para `parents[2]` na fixture, ou uma linha no README da web, evita a falha de quem roda `cd web && pytest tests`.
+- **S5.** Hoje o espelho é mantido à mão. Uma verificação na raiz (dono: testes), no estilo do `test_T0017_colunas_robo_igual_web`, comparando `bap_automation.blocos_resumo_fretes_web` com `fretes_fixture.blocos_resumo_web` na entrada da fixture, pega a próxima divergência sozinha. É a comparação que eu fiz à mão nesta rodada.
+- **S6.** `web/app/edicoes.py:67`: a `def msg_sem_chave` está no meio do bloco de constantes, antes do `ERRO_VISIVEL_DIAS`. Ficaria melhor depois delas.
+- **S7.** O título do PR #158 diz "web 0.9.0", mas o código está em 0.8.0. A sequência certa é #158 = 0.8.0 e depois T-0037 = 0.9.0. Vale corrigir o título para não confundir a conferência do `/saude`.
+
+## Ordem (atualiza o item 4 da lista acima)
+
+4. **`modulo-web/T-0037-fretes`**:
+   - entra depois do #158, com o merge do main e a resolução do Y6;
+   - leva o Y5;
+   - pede releitura no head novo;
+   - depois, publicar e conferir o `/saude` = 0.9.0 antes de o robô 4370d2d chegar à produção.

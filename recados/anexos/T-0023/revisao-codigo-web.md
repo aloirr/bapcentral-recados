@@ -278,3 +278,65 @@ Cada um com CI verde no head.
 - **RD-0164:** os alvos de toque do celular voltam a um `@media(max-width:700px)` só, agora com `var(--alvo)` (= 44px, `estilo.css:96`). O bloco subiu, mas `.ed-botoes .ed-cancelar` (0,2,0) segue mais forte que o `.ed-cancelar{min-height:36px}` que vem depois, e nenhuma regra posterior mexe nos outros seletores. A tela fica igual.
 - **Suíte web no `5c46721`:** **523 passed**. `compileall` ok. `verificar --por-commit 1772234..5c46721`: OK.
 - **Condição de merge:** CI verde no `5c46721`.
+
+---
+
+# Reteste 5: testes `d17632a`, ponte #153 `12ce390` e robô `03e9c9d` (27/11/2026, Manaus)
+
+**Ordem decidida:** web #154 (no `main`, `e1d80a8`) → núcleo #155 → ponte #153 → testes → robô → contrato.
+
+| Head | Parecer |
+|---|---|
+| Ponte `testes/T-0023-ponte-t0021` @ `12ce390` (#153) | **aprovado** |
+| Testes `testes/T-0023-testes` @ `d17632a` | **aprovado como PR futuro**, com 1 condição de merge (C1) e 1 🟡 ligado ao robô (T5) |
+| Robô `modulo-robo/T-0023-robo` @ `03e9c9d` | **aprovado no delta** (RD-0163). O R1 segue: o diff contra o `main` ainda leva o `relatorios_nucleo.py` e o `painel_farol.py` até o #155 entrar e o robô fazer o merge do `main` |
+
+## Como conferi (repositório de rascunho, sem tocar no clone)
+
+- **Cenário A, sem o robô:** `main` `ce7149e` + núcleo `9796772` + ponte `12ce390` + testes `d17632a`.
+  - `pytest tests/` (Python 3.12 com tkinter): **704 passed, 2 skipped, 2 xpassed**;
+  - os 2 skipped são os módulos `test_T0023_robo.py` e `test_T0023_valor_regra.py` inteiros ("robô da T-0023 v2 ainda não entrou");
+  - os 2 xpassed são da T-0027 (`xfail` não estrito), que já existiam;
+  - `web/tests`: **523 passed**.
+- **Cenário B:** o cenário A + robô `03e9c9d`. `pytest tests/`: **813 passed, 0 skipped**, 2 xpassed (os mesmos).
+- **Diferença para os números do testes** (671 e 780): são os +33 testes que o `main` ganhou depois (T-0036 e T-0045). A diferença entre A e B é igual nos dois relatos.
+- **Merge:** o núcleo, a ponte e o robô entram sem conflito. O testes `d17632a` **conflita no `.coord/diario/testes.md`** com o `main` de hoje (C1).
+- `verificar --por-commit`: OK nas 3 branches (testes com 9 commits, ponte com 1 e robô `08b042f..03e9c9d` com 2).
+
+## Ponte #153 `12ce390`: aprovado
+
+- Contra o `main`, o diff é só o `tests/test_T0021_edicao_web_robo.py` (8 linhas a mais e 2 a menos), e ele é igual ao do testes `d17632a`. O `12ce390` é só o merge do `main` sobre o `06107f4` já revisado.
+- O `_MOTIVO_TEXTO_60` usa o `motivo_texto_web(60)` quando o robô tem a função e o `MOTIVO_TEXTO_WEB` quando não tem. Verde nos 2 cenários. Isso fecha o 🟡 R6.
+
+## Testes `d17632a`: aprovado como PR futuro
+
+**A trava, com o robô presente, não afrouxou nas regras:**
+- `problemas_escopo(ba)` com o robô `03e9c9d` dá `[]`;
+- trocar o estado das Devoluções para a UF do cliente reprova com "regra de UF ('UF', 'uf'), esperado ('FILIAL', 'filial')" (RN-GER-006, P3 A);
+- a `FORA_DA_LISTA` e a `FORA` passam do `pl_garantias` para o `vc_markup`, com o mesmo efeito;
+- `FAROIS_PERMITIDOS = obrigatórios | FAROIS_T0023`, conferido por igualdade.
+
+**Com o robô presente, nada é pulado:** os skips dependem de `"pl_ncc" in FAROIS_WEB` e `CAMPOS_LUGAR_WEB` (módulo) e de `hasattr(rn, ...)` (núcleo f0af112). Todos ficam falsos no cenário B, que deu 0 skipped.
+
+🟡 **T5 (ligado ao robô, não a este PR). Afrouxamento latente depois que o robô entrar:**
+- O `FAROIS_T0023` continua "permitido, não obrigatório".
+- Um robô futuro que tire o `pl_ncc` do `FAROIS_WEB` e do `_TABELA_RECORTE_WEB` passa na trava, porque a `problemas_escopo` dá `[]` (conferido). Além disso, os 2 módulos `test_T0023_robo.py` e `test_T0023_valor_regra.py` se pulam inteiros: o CI fica verde sem nenhum teste da T-0023 do robô.
+- Era o 🟢 T3 do primeiro parecer. Com a ordem decidida, ele vira condição.
+- **Pronto quando:** logo depois do robô no `main`, e antes do contrato, um PR do testes:
+  - (a) passa o `FAROIS_T0023` para os obrigatórios;
+  - (b) troca o `pytest.skip(..., allow_module_level=True)` dos 2 módulos por falha, ou por um teste que exige os 3 `rid` no `FAROIS_WEB`.
+
+**C1 (condição de merge):** o testes precisa de um merge do `main` (o conflito no `.coord/diario/testes.md` é só de linhas acrescentadas). Isso gera um head novo, e eu revejo só o delta.
+
+**Dado pessoal nas fixtures:** nenhum dado real.
+- Os casos de recusa usam valores de exemplo: "92 99123-4567", "x@y.com", "12.345.678/0001-90", "123.456.789-00", "92999998888", "9233334444" e "33334444".
+- Os nomes são "FULANO FICTICIO" e "RESPONSAVEL FICTICIO", e os tickets são `G-00nn`.
+- Toda gravação vai para o `tmp_path`. Nenhum `gravar`, `aplicar_edicao_web`, `sincronizar_edicoes_web` ou `write_text` aponta para a `RAIZ`, que só é lida pelo `montar`.
+- O teste do JSON dos 3 faróis procura documento e e-mail em toda string, e telefone no texto livre e nos nomes. Ele não imprime conteúdo.
+
+## Robô `03e9c9d` (RD-0163, desde o `5176c2d`)
+
+- O `_MOVIMENTOS_WEB = (Path(BKP_BAPTOOLS), "Relatorio_Movimentos_BAP_Protheus_*.xlsx")` troca as 7 tuplas iguais do `_FONTE_BAIXADO_WEB` (pv_pedidos, pl_entregas, lote 2, vc_meta, pl_devolucoes e pl_garantias). O valor é idêntico, e a NCC e o Visita não mudam.
+- A trava (`_fonte_ok`) e os 813 testes do cenário B passam.
+- O `5176c2d` (`_corte_aba_web`, RD-0146) já estava no reteste 1.
+- R1 segue: abrir ou atualizar o PR depois do #155 no `main`, com o merge do `main`, para o diff ficar só com o `bap_automation.py`.
