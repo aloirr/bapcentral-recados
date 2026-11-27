@@ -222,3 +222,138 @@ Commit novo do modulo-robo com o RD-0172, o RD-0173 e o RD-0175 a RD-0179 corrig
 - **modulo-robo:** commit novo no #165 com o RD-0181.
 - **testes:** commit novo no #166 com o RD-0180.
 - **Prova:** os 7 `test_T0045_*` verdes no head novo do robô junto com o head novo dos testes, e o `test_T0021` rodado num ambiente com `tkinter`. Os dois PRs liberam juntos, cada um no seu head SHA.
+
+---
+
+# Reteste 2 no head `a020b53` (robô, PR #165) — 27/11/2026
+
+- **Delta `f6ae758..a020b53`:** 2 commits, só em `visitas_maxima.py` (+24 −6).
+  - `3511814`: o RD-0181.
+  - `a020b53`: o 🟡 A do revisor. O `_RX_URL_VERIFICACAO` passa a casar só segmentos inteiros, de uma lista fechada. O `pronto()` ganha a espera de 2 leituras e entra o `_texto_claro`.
+- **Testes:** o `testes/T-0045-nuvem-testes` continua no `5050cfe`. O RD-0180 está com o testes.
+- **Numeração:** o novo achado é o **RD-0200**. Os RD-0182 a RD-0191 são do corretor da T-0050, e a T-0037 usa do RD-0192 em diante (renumerado a pedido do gerente-projetos).
+
+## Resultado: **o robô não libera, por 1 achado novo** (RD-0200). O RD-0181 está fechado. O RD-0180 (testes, #166) continua aberto e segura o par #165/#166.
+
+## O que rodei (`git archive a020b53` + `tests/` do `5050cfe`, Python 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall -q visitas_maxima.py` | ok |
+| `pytest tests/test_T0045_*.py` | 205 passaram, 3 pulados, **1 falhou**: o mesmo do RD-0180 (`gravar_estado_edicoes_web`) |
+| `git grep _texto_claro` | 1 definição (`:443`) e 1 uso (`:836`, no `pronto()`). Nenhum teste |
+| Sonda `sonda_rd4.py` (6 URLs × 8 textos × captcha sim/não = 96 casos) | a proposta do RD-0200 dá o mesmo código e a mesma decisão de esperar nos 96 casos. O `_RX_BLOQUEIO` dentro do `_texto_claro` não decide nenhum caso |
+
+## RD-0181: **fechado**
+
+Saiu o `if not no_login: return "ok"` que nunca rodava, do `pronto()`. A linha do `MAXIMA_SENHA` no `classificar_login` ficou `if t.strip() and _RX_CREDENCIAL.search(t):`.
+
+## Achado novo
+
+### RD-0200 · O `_texto_claro` refaz o que o `classificar_login` acabou de decidir
+
+| Campo | Conteúdo |
+|---|---|
+| Onde | `visitas_maxima.py:443-446` (`_texto_claro`) × `:449-470` (`classificar_login`); uso em `:836` (`pronto()`); `:840` e `:842` (debounce) |
+| Tipo | código (regra repetida) |
+| O que se repete | O `_texto_claro` normaliza o texto de novo (`_sem_acento_min`) e roda de novo o `_RX_CONFIRMACAO` e o `_RX_BLOQUEIO`. São os mesmos 2 testes que o `classificar_login` acabou de fazer, na mesma ordem, com o mesmo texto. A única pergunta do `pronto()` é: "o `MAXIMA_CONFIRMACAO` saiu só pelo caminho da URL?". Isso o `classificar_login` já sabe: é o ramo `if not no_login:` da linha 466. A metade do bloqueio nunca decide, porque com bloqueio no texto o código já seria `MAXIMA_BLOQUEIO`, e não `MAXIMA_CONFIRMACAO` (0 de 96 casos). No debounce, `vistos.get("caminho") != caminho` aparece 2 vezes seguidas (`:840` e `:842`) |
+| Impacto | manutenção: são 2 cópias da regra de texto do §5.1. Uma frase nova no `classificar_login` sem a mesma frase no `_texto_claro` muda, sem aviso, quando a nuvem pausa |
+| Severidade | média |
+| Proposta | (a) O corpo do `classificar_login` vira `def _classificar(url, texto, tem_captcha, http_status) -> tuple:` e devolve `(codigo \| None, so_pelo_caminho)`, com `True` só no ramo da linha 466 (`return "MAXIMA_CONFIRMACAO", True`) e `False` nos outros. O público fica `def classificar_login(url, texto, tem_captcha, http_status) -> str \| None: return _classificar(url, texto, tem_captcha, http_status)[0]`: mesma assinatura, e os testes do #166 não mudam. (b) O `_texto_claro` sai. (c) No `pronto()`: `cod, so_caminho = _classificar(url, texto, captcha, None)` e depois `if so_caminho:` / `agora, caminho = _time.time(), _caminho(url)` / `if vistos.get("caminho") != caminho:` / `vistos.update(caminho=caminho, em=agora)` / `return None` / `if agora - vistos["em"] < 1.0:` / `return None`. A sonda deu o mesmo código e a mesma espera nos 96 casos |
+| Dono | modulo-robo |
+
+## Sem achado no resto do delta
+
+O `_RX_URL_VERIFICACAO` novo continua num lugar só, usado só pelo `_no_login`. O acréscimo no `_RX_CONFIRMACAO` não duplica outra regex. O `vistos` é local do `entrar`.
+
+## Para o reteste
+
+- **modulo-robo:** commit novo no #165 com o RD-0200.
+- **testes:** commit novo no #166 com o RD-0180.
+- **Prova:** os `test_T0045_*` todos verdes com os 2 heads novos juntos, e uma sonda do `_classificar` com a mesma decisão que o código de hoje.
+
+---
+
+# Reteste dos testes no head `cd794d1` (PR #166), com o robô `a020b53` — 27/11/2026
+
+- **Delta `5050cfe..cd794d1`:** 1 commit (`T-0045: testes ao robô a020b53 …`). Mexe em `tests/test_T0045_edicoes_web_igual_main.py`, `tests/test_T0045_robo_nuvem.py`, `tests/test_T0045_visitas_web_robo.py`, `docs/testes/T-0045.md` e no diário do testes.
+- **Numeração:** o novo achado é o **RD-0201** (renumerado a pedido do gerente-projetos).
+
+## Resultado
+
+- **Testes (#166, `cd794d1`): libera.** O RD-0180 está fechado. O único achado novo (RD-0201) é de gravidade baixa e só em docstring e título de teste: não segura o lote e entra no seguinte.
+- **Robô (#165, `a020b53`): não libera.** O RD-0200, do reteste 2, segue aberto.
+
+## O que rodei (`git archive a020b53` + `tests/` do `cd794d1`, Python 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall -q tests/ visitas_maxima.py` | ok |
+| `pytest tests/test_T0045_*.py` | **236 passaram, 3 pulados, 0 falhas**. Os 3 pulados são de `test_T0045_robo_nuvem.py:821` ("sem tkinter neste Python") |
+| `git grep _texto_claro` no `cd794d1` | nenhum teste chama o `_texto_claro` direto: a correção do RD-0200 não mexe nos testes |
+
+## RD-0180: **fechado**
+
+`test_RN_GER_012_funcoes_publicas_das_edicoes_continuam` agora confere só o `ler_estado_edicoes_web` e o `sincronizar_edicoes_web`. O estado é gravado pela régua (`r.gravar_estado_edicoes_web`), e há 1 assert novo do estado vazio. Os asserts do `baixar` e do `confirmar` saíram, e a docstring diz por quê. O teste passa com o robô `a020b53`.
+
+## Achado novo
+
+### RD-0201 · A docstring diz que o teste confere a importação, mas ele não chama a importação (não segura o lote)
+
+| Campo | Conteúdo |
+|---|---|
+| Onde | `tests/test_T0045_robo_nuvem.py:396-397`, `test_RN_VIS_003_conferir_importado_e_o_mesmo_no_robo_e_na_gravacao` |
+| Tipo | teste (título e docstring) |
+| O que se repete | A docstring diz "O mesmo motivo sai da importação (`_validar_lote_visitas_web`) e da última trava (`gravar_excel_importado`)". O corpo só compara o `conferir_importado` com o `gravar_excel_importado` e nunca chama o `_validar_lote_visitas_web`. O título fala em "no robô e na gravação", mas os 2 lados estão no robô |
+| Impacto | leitura: promete uma cobertura que o teste não tem |
+| Severidade | baixa (só título e docstring) |
+| Proposta | Renomear para `test_RN_VIS_003_gravar_excel_importado_levanta_o_motivo_do_conferir_importado`, com a docstring `"""A última trava (`gravar_excel_importado`) levanta o mesmo motivo do `conferir_importado`."""`. Outra saída é acrescentar, no mesmo teste, a chamada ao `ba._validar_lote_visitas_web` com um lote fictício. Aí o texto atual passa a valer |
+| Dono | testes |
+
+## Sem achado no resto do delta
+
+- Os testes novos do D1/D2, do 🟡 A, do `_fase`, da linha por vendedor, do `conferir_importado` (14 casos), do `_no_login` e do fuso não repetem casos que já existiam.
+- A lista de URLs que seguem (`/hotpage`, `/devices/home`…) entrou no parametrize que já existia, sem teste novo.
+- A matriz do `docs/testes/T-0045.md` foi atualizada sem linha repetida.
+
+## Para liberar o par
+
+- **modulo-robo:** commit novo no #165 com o RD-0200.
+- **Depois:** reteste do robô e os `test_T0045_*` rodados de novo com o `cd794d1`, ou com o head do testes que estiver valendo.
+- **testes:** o RD-0201 entra no próximo lote do testes.
+
+---
+
+# Reteste do RD-0200 no head `479b8f65b5ca7187a89b763a58719735b0c83f8a` (robô, PR #165) — 27/11/2026
+
+- **Delta `a020b53..479b8f6`:** 1 commit (`T-0045: RD-0200 …`), só em `visitas_maxima.py` (+25 −28).
+
+## Resultado: **o robô libera.** Não há achado em aberto no #165. O RD-0201 é do #166, de gravidade baixa e só em título de teste: não segura nenhum dos dois.
+
+## O que rodei (`git archive 479b8f6` + `tests/` do `cd794d1`, Python 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall -q visitas_maxima.py` | ok |
+| `pytest tests/test_T0045_*.py` | **236 passaram, 3 pulados, 0 falhas** (os 3 pulados são de "sem tkinter neste Python") |
+| Sonda `sonda_rd5.py`, os mesmos 96 casos (6 URLs × 8 textos × captcha sim/não) | o `(codigo, so_pelo_caminho)` do `_classificar` novo é igual a `(classificar_login, cod == CONFIRMACAO and not _texto_claro)` do `a020b53` em **96 de 96 casos, 0 diferenças**; o `classificar_login` novo é igual a `_classificar(...)[0]` em todos |
+| `git grep` no head | `_texto_claro` não existe mais. O `_classificar` está definido em 1 lugar (`:443`) e é usado em 2: no `classificar_login` (`:472`) e no `pronto()` (`:835`) |
+
+## RD-0200: **fechado**
+
+- O `_classificar` devolve `(codigo, so_pelo_caminho)`, com `True` só no ramo do caminho de verificação.
+- O `classificar_login` passa a ser `_classificar(...)[0]`, com a mesma assinatura.
+- O `_texto_claro` saiu, e a regra do texto do §5.1 ficou escrita uma vez só.
+- O debounce virou uma comparação só: `vistos.setdefault(_caminho(url), agora)`.
+
+## Fora do meu escopo (encaminhado, não catalogado)
+
+O debounce novo guarda a 1ª leitura **por caminho**, e não só a do último caminho, como no `a020b53`. Na sequência `/mfa` → `/verificacao` → `/mfa` (1 s ou mais depois), o `a020b53` recomeçava a conta no segundo `/mfa`; o `479b8f6` já decide nesse segundo `/mfa`. Isso é comportamento, não repetição: fica com o revisor-codigo e o testes, se quiserem conferir. Nos testes do `cd794d1` (2 leituras do mesmo caminho e verificação de passagem), os dois dão o mesmo resultado.
+
+## Situação final dos RD deste parecer
+
+| RD | Dono | Situação |
+|---|---|---|
+| RD-0172 a RD-0181 | modulo-robo / testes | fechados |
+| RD-0200 | modulo-robo | fechado no `479b8f6` |
+| RD-0201 | testes | aberto, baixa, só título e docstring de teste. Não segura o lote e entra no próximo lote do testes |

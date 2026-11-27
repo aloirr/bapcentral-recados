@@ -143,3 +143,277 @@ Delta `11b24fc..ed640e1`: 1 commit (`T-0045: correcoes da revisao…`, `Agente: 
 - **R2. Sem pista no log quando o lote dá `erro`/`dia`.** Na exceção não prevista, o log só diz "N recusada(s)". O comentário em `_aplicar_lote_visitas_web` fala em "o log só tem a classe", mas a classe não aparece. Uma linha `Visitas web: erro ao montar o dia (<Classe>)` ajuda a diagnosticar, sem dado pessoal.
 - **R3. URL com fragmento.** O `pronto()` agora ignora o fragmento: um login com rota em hash (`#/login`) seria lido como "ok" na hora. A Máxima usa `/login` no caminho (`URL_LOGIN`), então hoje não há efeito. Fica a nota.
 - Os 🟢 1 a 10 do parecer anterior continuam como sugestões.
+
+---
+
+# Reteste no head `3511814057362fdb974d36eb393c82e2561da2dc` (PR #165, 27/11/2026)
+
+Delta desde o `ed640e1` (aprovado):
+- `9a886ae`: merge do `origin/main` `4fc6429`. Não mexe nos 2 `.py` do robô: o main não tocou neles desde `0f3106a`.
+- `69b14cc`: D1 e D2 do `classificar_login`.
+- `f6ae758`: RD-0172, 0173 e 0175 a 0179.
+- `3511814`: RD-0181.
+
+Contra o main, os arquivos alterados continuam só `bap_automation.py` e `visitas_maxima.py`.
+
+## Veredito no 3511814
+
+**Não aprovado: 0 🔴 e 2 🟡** (um no código, um de coordenação com o PR do `testes`). As RDs estão certas, e o `sincronizar_edicoes_web` continua igual.
+
+## O que rodei (cópia fora do repositório, venv 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall` dos 2 `.py` | ok |
+| `pytest tests/` inteiro no `f6ae758` (+ os testes do `origin/testes/T-0045-nuvem-testes` `5050cfe`) | 862 passaram e 2 falharam. Uma falha é do `main` (abaixo) e a outra é o 🟡 B |
+| `test_T0021` + todos os `test_T0045_*` (do main e da branch do testes) no `3511814` | 235 passaram, 3 skipped e 1 falhou (o 🟡 B) |
+| `cmp_edicoes.py` (`t0045b`) | **TUDO IGUAL** (7 cenários) no `f6ae758` e no `3511814` |
+| `visitas_web.py` / `sonda2.py` | TUDO OK / TUDO OK |
+| `cmp_botao.py` | só o "DIFERE" já esperado da fase `navegador` (ver o reteste do `ed640e1`) |
+| Minhas sondas `s1.py` e `s3.py` | o índice do PC não recua. `fechados_pc` em `-04:00` pelo `_quando_manaus`, com a chave do mês e a data torta fora. O D1 está no 🟡 A |
+| `verificar --por-commit 0f3106a..3511814` | OK (16 commits com o merge), nenhuma violação |
+| `git merge-tree origin/main(4fc6429) 3511814` | sem conflito |
+| `bap_dados.VERSAO` | 27 |
+
+**Falha que já está no `main` (não é deste PR):** `tests/test_T0024_lote2_robo_web.py::test_T0024_pacote_real_do_lote2_pelo_formato2_abre_em_200_e_403_por_perfil`. Ela falha igual no `4fc6429` puro: o perfil `analista`, do T-0036 (#158), no `pv_indicadores`, e o teste do T-0024 não foi atualizado. Vai ao gerente para quem é dono do teste.
+
+## 🟡
+
+**A. `visitas_maxima.py`, `classificar_login` (D1): o login normal pode dar alarme falso.** Com o D1, o **caminho** da URL decide sozinho: casou o `_RX_URL_VERIFICACAO` fora do `/login`, o resultado é `MAXIMA_CONFIRMACAO` com qualquer texto, até vazio (página carregando).
+- O regex procura **pedaços de palavra** (`otp`, `mfa`, `confirm`, `autentic`, `device`, `termo`…) em qualquer parte do caminho. A sonda `s3.py` dá `MAXIMA_CONFIRMACAO` para `/hotpage`, `/devices/home`, `/autenticacao/callback` com "Carregando…", `/auth/autenticar` e `/sso/confirm-redirect`.
+- O `pronto()` olha a URL a cada 0,4 s logo depois do "Entrar". Um redirecionamento intermediário do login normal com um desses caminhos derruba o login do **botão do PC** sempre. Pela regra 11, o PC recebe isso na rotina seguinte ao merge, antes do diagnóstico.
+- No `ed640e1`, esse caso exigia texto de confirmação. Agora o D1 é conservador para a conta da Máxima (nunca repete o login), mas **não** contra alarme falso, que era o ponto pedido.
+- Correção sugerida, mantendo o D1:
+  - (1) regex por **segmento inteiro** do caminho, numa lista fechada (`verificacao`, `verificar`, `confirmacao`, `confirmar`, `mfa`, `2fa`, `otp`, `dispositivo`, `novo-dispositivo`, `termos`, `aceite`, `redefinir-senha`, `trocar-senha`, `alterar-senha`, `nova-senha`), sem `autentic` e `device` soltos;
+  - (2) no `pronto()`, o caso "só pelo caminho" (sem texto que case) só decide depois de ver o mesmo caminho em 2 leituras com 1 s ou mais entre elas.
+  - Teste: os 5 caminhos acima → `None`; os `VERIFICACAO_TEXTO_NOVO` do testes → `MAXIMA_CONFIRMACAO`.
+
+**B. Coordenação: o RD-0173 (3 funções das edições apagadas) conflita com o teste do item 9.** `tests/test_T0045_edicoes_web_igual_main.py::test_RN_GER_012_funcoes_publicas_das_edicoes_continuam` (branch `testes/T-0045-nuvem-testes` `5050cfe`) exige `gravar_estado_edicoes_web`, `baixar_edicoes_web` e `confirmar_edicoes_web` com as assinaturas do main. Com o `3511814`, falha com `AttributeError`.
+- `git grep` no `3511814` (árvore inteira: PC, smokes, testes do main): **nenhum chamador** das 3 funções. A remoção está certa como código morto.
+- Recomendo que o `testes` tire os 3 nomes do teste (os 2 que ficam, `ler_estado_edicoes_web` e `sincronizar_edicoes_web`, mais o efeito, continuam cobertos). Se for preferível manter a API, o robô devolve as 3 funções.
+- Decide o gerente. Sem isso, o PR #165 e o do item 9 não ficam verdes juntos no main.
+
+## As RDs e o D2 (conferidos, sem achado)
+
+- RD fuso: `fechados_pc` e `_aplicar_lote_visitas_web` usam o `vn._quando_manaus`, sem regra própria. A saída continua `AAAA-MM-DDTHH:MM:SS-04:00`, a data torta e a chave `AAAAMM` ficam fora, e no lote sem `baixado_em` vale a hora de agora em Manaus.
+- RD `conferir_importado`/`_base_analitico`: é a regra única para o `_validar_lote_visitas_web` e o `gravar_excel_importado`. É igual à anterior: o `startswith("VISITA-<pasta>-")` saiu, mas o `m.group("nome") == pasta` do `_RX_ARQ_ANALITICO` ancorado dá o mesmo resultado. Os motivos `pasta`/`nome` têm a mesma ordem. O `base64` continua importado no topo do módulo.
+- RD `_fase` com `FASES`: todas as 12 chamadas usam fase da lista, e o PC não é afetado. O evento `vendedor` sai numa linha só, com `dia`. O `self.vendedores` continua certo, porque é atribuído no laço.
+- RD `_no_login` e RD-0181: as 2 remoções são inalcançáveis. Depois do `if not no_login: return MAXIMA_CONFIRMACAO`, o `no_login` é sempre verdadeiro. No `pronto()`, todo caminho fora do `/login` que passa da primeira guarda já devolve código. O comportamento não muda.
+- Logs: `Visitas web: N Excel de M dia(s).`, sem nome e sem token.
+- D2 (troca de senha no `/login` → `MAXIMA_CONFIRMACAO`): ok. O texto avaliado no `/login` é só o do elemento de erro (snack-bar, `mat-error`…), então o "Esqueceu a senha? Crie uma nova senha" do rodapé não entra.
+
+## Para o re-teste
+
+Commit novo com o 🟡 A e a decisão do gerente sobre o 🟡 B. Novo pedido com o head SHA.
+
+---
+
+# Reteste no head `a020b5321d20d5c3655f5f108b55a4f2385348dc` (PR #165, 27/11/2026)
+
+O delta desde o `3511814` é 1 commit (`a020b53`, `Agente: modulo-robo`), só em `visitas_maxima.py`:
+- `_RX_URL_VERIFICACAO` passa a casar só **segmentos inteiros**, de uma lista fechada;
+- `_texto_claro`;
+- no `pronto()`, a 2ª leitura do mesmo caminho, 1 s ou mais depois, quando só o caminho decide;
+- duas variantes de redação a mais no `_RX_CONFIRMACAO` ("o seu", "a sua").
+
+## Veredito no a020b53
+
+**Aprovado no código: 0 🔴 e o 🟡 A fechado.** O 🟡 B (as 3 funções das edições exigidas pelo teste do item 9) continua aberto, com o `testes` (RD-0180). Ele não é defeito deste código, mas o PR #165 e o do item 9 só ficam verdes juntos no `main` depois do RD-0180. Fazer o merge do #165 antes deixa o PR do `testes` vermelho até ele ajustar.
+
+## O que rodei (cópia fora do repositório, venv 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall` dos 2 `.py` | ok |
+| `test_T0021` + todos os `test_T0045_*` (os do main e os da branch do testes `5050cfe`) | 235 passaram, 3 skipped e 1 falhou: só o 🟡 B (`test_RN_GER_012_funcoes_publicas_das_edicoes_continuam`) |
+| `cmp_edicoes.py` | **TUDO IGUAL** (7 cenários) |
+| `visitas_web.py` / `sonda2.py` / `sonda4.py` / `sonda5.py` | TUDO OK nas 4 |
+| `cmp_botao.py` | só o "DIFERE" já esperado da fase `navegador` |
+| Minha `s3.py` | **os 5 caminhos dão `None`**: `/hotpage`, `/devices/home`, `/autenticacao/callback` ("Carregando…"), `/auth/autenticar`, `/sso/confirm-redirect`. `/home` e `/sistemas?next=/verificacao` também dão `None` (a query não conta) |
+| Minha `s1.py` | igual ao reteste do `ed640e1`: senha, captcha, bloqueio e confirmação como antes. `…/home?t=abOTPx9` + "Termos de uso" → `None` |
+| Minha `s6.py` (o `entrar` com URL que muda no tempo) | `/mfa` por 0,6 s e depois `/home` → **login ok**. `/termos` por 0,8 s e depois `/home` → **login ok**. `/aceite-termos` que fica → `MAXIMA_CONFIRMACAO` em ~1,2 s. Os caminhos do maxGestão que o robô usa (`/painel-auditoria`, `/geolocalizacao/…`) → login ok |
+| `verificar --por-commit 0f3106a..a020b53` | OK (17 commits), nenhuma violação |
+| `git merge-tree origin/main(4fc6429) a020b53` | sem conflito. Contra o main, os arquivos alterados continuam só os 2 `.py` |
+| `bap_dados.VERSAO` | 27 |
+
+O `pytest tests/` inteiro não foi repetido neste head. O delta é só o `entrar`/`classificar_login`. A suíte inteira do `f6ae758` teve só a falha do 🟡 B e a do `main` (`test_T0024_…_403_por_perfil`, já registrada no reteste do `3511814`).
+
+## A lista fechada e os segmentos "termos" e "aceite-termos"
+
+- **Não pega a página normal da Máxima.** Nenhum caminho que o robô conhece (`/login`, a raiz do maxGestão, `/painel-auditoria`, `/geolocalizacao/…`) é segmento da lista. O casamento exige o segmento **inteiro** entre `/` e `/` ou o fim: `/termos-de-uso`, `/verificacao-email` ou `/mfa-setup` não casam.
+- **"termos" e "aceite-termos" fazem sentido.** O §5 do contrato põe o "aceite de termo" em `MAXIMA_CONFIRMACAO`. Ser levado, logo depois do "Entrar", a um `/termos` que **fica** 1 s ou mais é o caso do aceite. A página de termos que o usuário abre por link não aparece nesse ponto, porque o `pronto()` só olha até a primeira saída do `/login`. E a `s6.py` mostra que um `/termos` de passagem (menos de 1 s) não derruba o login.
+- Risco que sobra, aceito: um salto intermediário do login normal que **pare 1 s ou mais** num desses segmentos, sem texto. Com segmentos tão específicos, é improvável. A rodada real do botão do PC depois do instale (🟢 R1) confirma.
+
+## 🟢 (não bloqueiam)
+
+- **R4.** Registrar no §5.1 do contrato a lista fechada dos segmentos e a regra "só pelo caminho = 2 leituras com 1 s ou mais entre elas" (v1, detalhe de implementação), para o site e o testes usarem a mesma lista.
+- **R5.** Um caminho de verificação com acento codificado (`/verifica%C3%A7%C3%A3o`) não casa e segue como login ok, depois cai em `TELA_MUDOU`. É o lado seguro contra alarme falso; fica a nota.
+- R1 (acompanhar o primeiro "Atualizar visitas" do PC depois do instale) continua valendo.
+
+---
+
+# Revisão no robô `479b8f6` (PR #165) e nos testes `cd794d1` (PR #166) — 27/11/2026
+
+O `origin/main` andou para **`d2cd695`** durante a revisão:
+- `bdbf2a7` (#168): conserta o `test_T0024` do perfil analista;
+- `2e84ef7` (#167): testes do T-0023;
+- **`d2cd695` (#171): o T-0023 no robô, que mexe no laço das edições.**
+
+## Veredito
+
+| PR | head | Veredito |
+|---|---|---|
+| #165 robô | `479b8f6` | **Não aprovado: 0 🔴 e 1 🟡 (R-A).** O RD-0200 está certo. O 🟡 é o conflito com o main `d2cd695` no laço das edições |
+| #166 testes | `cd794d1` | **Conteúdo aprovado: 0 🔴; 1 🟡 (T-A) só de merge.** O 🟡 B do robô está fechado pelo RD-0180 |
+
+## 🟡
+
+**R-A (#165): conflito com o `main` `d2cd695` em `bap_automation.py`, com uma armadilha de semântica.** O #171 mudou o `sincronizar_edicoes_web` do main:
+- `aplicar_edicao_web(raiz, reg, opcoes, gravar, _saida=extra)`;
+- `_registrar_aplicada_web(..., res["epoca"], extra)`: o `chave_pc` (ticket da garantia) vai para o registro das aplicadas.
+
+O #165 tirou esse laço para o `puxar_fila_web`. Resolver o conflito ficando com o lado do #165 **perde o `chave_pc`** sem erro aparente.
+
+Correção: no merge do main, o `sincronizar_edicoes_web` do #165 passa o `extra` do `aplicar` ao `registrar` (closure por registro, ou o `aplicar` devolvendo o extra), sem mexer no laço comum.
+
+Pronto quando: `tests/test_T0023_robo.py` (linha ~500, `linhas[0]["chave_pc"] == "G-0001"` pelo `sincronizar_edicoes_web`) e os `test_T0045_*` passam no head novo. Commit novo = revisão do delta.
+
+**T-A (#166): conflito com o `main` `d2cd695` em `.coord/diario/testes.md`.** É só acréscimo dos dois lados: fica com as linhas de ambos. Commit novo = revisão do delta, que deve ser rápida.
+
+## O que rodei (cópias fora do repositório, venv 3.12, `xvfb-run`)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall` dos 2 `.py` e dos testes novos | ok |
+| `merge-tree origin/main(d2cd695)` × `479b8f6` / × `cd794d1` | **conflito** em `bap_automation.py` (R-A) / em `.coord/diario/testes.md` (T-A) |
+| `verificar --por-commit` (#166: 3 commits; #165: `a020b53..479b8f6`) | OK nos dois, sem violação. Trailers `Agente: testes` e `Agente: modulo-robo` |
+| **#166 com o main sozinho** (`4fc6429` + `cd794d1`, os 8 arquivos da T-0045) | 53 ✅ e 11 pulados (todos "robô ainda não está no main"). Bate com o relato |
+| **#166 com o main `d2cd695`** (+ `test_T0023_robo`) | 136 ✅ e 11 pulados |
+| **main + #165 `a020b53` + #166 `cd794d1`** (arquivos da T-0045) | **239 ✅ e 0 ❌** com `xvfb-run`; sem display, 236 ✅ e 3 pulados (a tela). Bate com o relato |
+| main `4fc6429` + #165 `a020b53` + #166, `pytest tests/` inteiro com `xvfb-run` | 896 ✅, 2 xpassed e 1 ❌: o `test_T0024_…_403_por_perfil`, do main, já consertado no `bdbf2a7` (#168) |
+| main + #165 `479b8f6` + #166 (T-0045 + `test_T0021`) | **269 ✅ e 0 ❌** |
+| `sonda6.py` (726 casos, `479b8f6` × `a020b53`; o `vm_a020.py` do autor é byte a byte o do `a020b53`) | 0 diferenças |
+| `cmp_edicoes.py` / `sonda5.py` no `479b8f6` | TUDO IGUAL / TUDO OK |
+| Minhas `s3.py` e `s6.py` no `479b8f6` | os 5 caminhos genéricos → `None`. Passagem por `/mfa` (0,6 s) e `/termos` (0,8 s) → login ok. `/aceite-termos` que fica → `MAXIMA_CONFIRMACAO` |
+
+## #166 — os testes pegam defeito de verdade
+
+Rodei os testes do #166 contra as versões antigas do robô (troca só dos 2 `.py`):
+
+| Robô | ❌ | O que os testes pegaram |
+|---|---|---|
+| `11b24fc` | **49** | o índice do PC que recua (`test_RN_VIS_002_hora_do_indice_do_pc_nunca_recua`); o erro inesperado que segura a fila; a fase `navegador`; o captcha invisível; a URL inteira em vez do caminho; o D1; o D2; o fuso; `conferir_importado`; o log dobrado |
+| `ed640e1` | 30+ | D1, D2, fuso, `_fase` fora de `FASES`, `conferir_importado`, log |
+| `3511814` | **8** | exatamente os 5 caminhos da minha `s3.py` (`test_RN_VIS_005_login_conservador_olha_so_o_caminho_da_url`), a passagem curta (`…_verificacao_de_passagem_nao_pausa`), as 2 leituras e o `/nova-senha` |
+
+- **Os casos s3 e s6 estão lá:**
+  - os 5 caminhos na `test_T0045_robo_nuvem.py:682-686`;
+  - a passagem de menos de 1 s e a 2ª leitura com `time.monotonic() >= 1.0` (linha 115).
+- **Guardas de skip:** com o robô no main, todas somem (0 pulados com `xvfb-run`). Sem o robô, pulam só as que dependem dele (11).
+- **Régua das edições:** a `FONTE` do `ref_T0045_edicoes_web_main.py` é **idêntica**, por AST, às 5 funções do main `4fc6429`. O `test_RN_GER_012_*` compara resultado, chamadas, log e estado.
+- **RD-0180:** o `test_RN_GER_012_funcoes_publicas_das_edicoes_continuam` agora confere só `ler_estado_edicoes_web` e `sincronizar_edicoes_web`. **Fecha o 🟡 B.**
+- **§4.4:**
+  - web antiga 404 mudo e sem POST;
+  - lote importado byte a byte;
+  - `fechados_pc` em toda volta (1ª e 2ª);
+  - época nova sem duplicar e outro conteúdo com `-2`;
+  - sha256 ruim (cabeçalho, linha, arquivo, `bytes`, base64);
+  - `..`, barra, pasta ≠ nome, dia futuro ou diferente, e "um ruim = nenhum gravado";
+  - hora que não recua;
+  - erro inesperado → `erro`/`dia`, com disco e Excel aberto continuando pendentes;
+  - `puxar_fila_web` como laço único das 2 filas, com páginas, 409 e confirmar que falha;
+  - `depois_de_baixar` uma vez;
+  - ponta a ponta `diario/AAAAMMDD.csv` = o do PC;
+  - matriz web × robô novo/antigo com a `web/app/visitas.Visitas` de verdade.
+- **Fixtures sem dado real:**
+  - `visitas_nuvem_fixture.py` usa `VENDEDOR FICTICIO UM`/`DOIS`, `CLIENTE FICTICIO` e tokens fictícios;
+  - nenhum dos 40 nomes de pasta reais de `RELATORIOS/Visitas/ANALITICO` aparece nos testes nem no `docs/testes/T-0045.md`;
+  - nenhum padrão de CNPJ, CPF, telefone ou e-mail;
+  - a tela troca o `ler_config` (nunca lê o `visitas_config.json`);
+  - nada de `auth/`, `.env`, TomTom ou Google;
+  - rodar os testes não grava nada versionado (só o cache do Python).
+
+## #165 — o RD-0200 no 479b8f6
+
+- `_classificar` → `(codigo, so_pelo_caminho)`, e `so_pelo_caminho` é `True` só no ramo "caminho de verificação sem texto". É **o mesmo** conjunto que o `cod == MAXIMA_CONFIRMACAO and not _texto_claro(texto)` do `a020b53`: chegar a esse ramo implica que `_RX_BLOQUEIO` e `_RX_CONFIRMACAO` não casaram, que é exatamente o `not _texto_claro`. O `classificar_login` público continua com a mesma assinatura e devolve `[0]`. A `sonda6.py` mostra 0 diferenças em 726 casos.
+- **O debounce `vistos.setdefault(caminho, agora)`, julgado como o corretor pediu:** **não abre alarme falso no login normal.**
+  - O `pronto()` termina com "ok" na primeira leitura de um caminho que não é `/login` nem da lista fechada. Uma "passagem rápida que volta ao mesmo caminho" só existe **dentro** da lista: o login normal não passa por `/mfa` nem por `/verificacao`.
+  - Voltar ao `/login` no meio não mudava nada no `a020b53` (ele também só zerava a contagem num caminho da lista). A `s7.py` dá o mesmo resultado nos dois heads para `/mfa → /login → /home` e para `/mfa → /otp → /mfa → /home` (login ok).
+  - A única diferença é `/mfa → /verificacao → /mfa` que **fica**: o `479b8f6` decide em ~1,2 s e o `a020b53` em ~2,4 s. Os dois devolvem `MAXIMA_CONFIRMACAO`, a mesma resposta certa, só mais cedo.
+  - Por isso fica como 🟢 (R-B), não 🟡.
+
+## 🟢 (não bloqueiam)
+
+- **R-B (#165):** se o gerente quiser a semântica exata do `a020b53`, basta contar desde a última mudança de caminho (`if vistos.get("c") != c: vistos.update(c=c, em=agora)`). Fixar o comportamento escolhido num teste com `/mfa → /verificacao → /mfa`, que hoje nenhum teste distingue.
+- **T-B (#166): guardas que podem mascarar defeito.** As guardas `hasattr(vm, "classificar_login")` / `hasattr(ba, "sincronizar_visitas_web")` são certas enquanto o robô não está no main. Depois do merge do #165, porém, um renome dessas funções faria **arquivos inteiros pularem em silêncio**. Se o #165 entrar antes do #166, tirar as guardas no próprio #166; se entrar depois, abrir a tarefa de tirá-las logo após.
+- **T-C (#166): a tela não roda no CI.** O CI (`.github/workflows/ci.yml`) roda `pytest tests` sem `xvfb-run`, então os 3 testes da tela do aviso (`test_RN_VIS_004_*`) pulam no CI. É governança: recado ao Alexandre/po, para o `xvfb-run` no passo do `pytest`.
+- **T-D (#166): régua defasada.** A régua `ref_T0045_edicoes_web_main.py` congela o laço do `e1d80a8`, e o #171 mudou o laço de propósito (`_saida`/`extra`). O teste continua passando (as fixtures não têm garantia), e o `chave_pc` é coberto pelo `test_T0023_robo`. Mesmo assim, pelo próprio docstring da régua, ela deve ser atualizada ao laço do `d2cd695` num PR do testes.
+- **T-E:** o docstring do `test_RN_GER_012_funcoes_publicas…` cita "RD-0172". O RD das 3 funções apagadas foi informado como RD-0173: conferir a numeração.
+
+---
+
+# Reteste do R-A no robô `c1ad1be93e1ed85a5ffd333ef71d8cb2e561ef04` (PR #165, 27/11/2026)
+
+`c1ad1be` = merge de `479b8f6` com o main `d2cd695` (#167, #168, #171). `Agente: modulo-robo`.
+
+## Veredito no c1ad1be
+
+**Robô aprovado: 0 🔴 e 0 🟡.** O R-A está fechado. Os 🟢 continuam como sugestões, inclusive o R-B (debounce). O #166 será relido no head novo que o gerente anunciou.
+
+## O merge (pelo `git show --remerge-diff`)
+
+A resolução mexe só em 4 pontos, todos certos:
+
+1. **`puxar_fila_web`:** o laço cria `extra = {}` por registro, chama `aplicar(reg, extra)` e repassa o mesmo `extra` ao `registrar(reg, status, motivo, epoca, extra)`. O docstring foi atualizado.
+2. **`sincronizar_edicoes_web`:** `aplicar_edicao_web(raiz, reg, opcoes, gravar, _saida=extra)` e `_registrar_aplicada_web(raiz, reg, status, motivo, epoca, extra)`, exatamente como no laço do main `d2cd695`.
+3. **`sincronizar_visitas_web`:** recebe e ignora o `extra` (`_extra`) nos 2 lambdas. O registro das visitas não muda.
+4. O resto do #171 entrou pelo merge automático. Não sobrou marcador de conflito, o `visitas_maxima.py` é igual ao do `479b8f6` e, contra o main, os arquivos alterados continuam só os 2 `.py`.
+
+## O que rodei (cópia fora do repositório, venv 3.12, `xvfb-run`)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall` dos 2 `.py` | ok |
+| `merge-tree origin/main(d2cd695) c1ad1be` | sem conflito |
+| `verificar --por-commit 479b8f6..c1ad1be` | OK (3 commits), nenhuma violação |
+| main `d2cd695` + `c1ad1be` + #166 `cd794d1`: T-0045 + `test_T0021` + `test_T0023_robo` | **352 ✅ e 0 ❌**, com o `chave_pc == "G-0001"` pelo `sincronizar_edicoes_web` |
+| os testes do main que o #171 tocou (`test_T0023_*`, `test_T0013_pacote_web`, `test_T0017_pacote_tres_farois`, `test_T0024_*` do robô e da trava, `test_T0035_robo_web`) | **241 ✅ e 0 ❌**. O `test_T0024_…_403_por_perfil` já passa (#168) |
+| `cmp_edicoes.py` com a régua trocada para o `bap_automation.py` do **`d2cd695`** | **TUDO IGUAL** (7 cenários) |
+| `sonda6.py` (726 casos × `a020b53`) / `visitas_web.py` / `sonda2.py` / `sonda5.py` | 0 diferenças / TUDO OK / TUDO OK / TUDO OK |
+| Minhas `s1.py` e `s3.py` | o índice do PC não recua; os 5 caminhos genéricos → `None` |
+| **Mutação:** tirar o `extra` do `_registrar_aplicada_web` no `sincronizar_edicoes_web` | `test_T0023_robo.py::test_RN_GER_012_a_linha_nova_nunca_e_criada_duas_vezes_e_o_antes_fica_gravado` **falha**: a rede pega a perda do `chave_pc` |
+
+Não repeti o `pytest tests/` inteiro neste head. Os arquivos do merge foram cobertos pelas 2 rodadas acima (T-0045 + T-0021 + T-0023 + T-0013/0017/0024/0035).
+
+---
+
+# Reteste dos testes `4a3089f` (PR #166, item 9) — 27/11/2026
+
+O head `4a3089f` está sobre o main `eb7e267`, que já tem o robô #165. Os `visitas_maxima.py` e `bap_automation.py` do `eb7e267` são byte a byte os do `c1ad1be` aprovado. Desde o `cd794d1` entraram:
+- 2 merges do main (`2e63019` com `d2cd695`, `e5954ee` com `eb7e267`);
+- `b8aa385` (régua no `d2cd695`, guardas fora, RD-0201);
+- `4a3089f`.
+
+Todos com `Agente: testes`.
+
+## Veredito no 4a3089f
+
+**Aprovado: 0 🔴 e 0 🟡.** O T-A (conflito no diário), o T-B (guardas) e o T-D (régua) estão fechados. O T-E (numeração do RD) fica como o autor registrou (RD-0172). O T-C (a tela fora do CI, governança) continua 🟢.
+
+## Conferido
+
+- **Merges:** o `--remerge-diff` dos 2 merges só resolve `.coord/diario/testes.md`, ficando com as linhas dos dois lados (só acréscimo). Nenhum `.py` do PC entra pelo #166: contra o main, os arquivos alterados são só os de `tests/`, `docs/testes/T-0045.md` e o diário. `merge-tree origin/main(eb7e267) 4a3089f` sem conflito; `verificar --por-commit` OK nos 5 commits.
+- **Régua no `d2cd695`:** a `FONTE` do `ref_T0045_edicoes_web_main.py` é **idêntica, por AST**, às 5 funções do `bap_automation.py` do `d2cd695`, inclusive o `_saida=extra` e o `extra` no `_registrar_aplicada_web`. O docstring explica a troca do `e1d80a8` para o `d2cd695`.
+- **Teste novo `test_RN_GER_012_chave_pc_da_garantia_chega_ao_registro_igual_ao_main`:** compara laço extraído × régua com um `aplicar_edicao_web` falso que preenche o `chave_pc` (`TICKET-FICTICIO-0001`, fictício). **Mutação:** trocar o `extra` por `{}` no `registrar` do `puxar_fila_web` → esse teste **falha**. Ele pega exatamente o risco do R-A.
+- **Guardas `hasattr` fora:** `robo_nuvem`, `visitas_web_robo`, `matriz`, a paridade robô × web e a do `test_T0045_plano`. O que sobra de `skip` é legítimo: sem tkinter ou sem display (a tela) e "sem índice de baixas nas bases congeladas" (o plano).
+- **RD-0201:** o novo nome (`test_RN_VIS_003_gravar_excel_importado_levanta_o_motivo_do_conferir_importado`) descreve o que o teste confere.
+- **Dados:** o teste novo e os ajustes continuam só com dados fictícios.
+
+## O que rodei (cópia fora do repositório, venv 3.12)
+
+| Conferência | Resultado |
+|---|---|
+| `compileall tests/` | ok |
+| Arquivos da T-0045 (`ref_` + `test_T0045_*`), com `xvfb-run` | **240 ✅ e 0 ❌**, nenhum pulado. Bate com o relato |
+| `pytest tests/` inteiro, sem display | **1029 ✅**, 3 pulados (a tela) e 2 xpassed, saída 0. Bate com o relato |
+| Mutação no repasse do `extra` | `test_RN_GER_012_chave_pc_…` ❌ (1 de 19 no arquivo) |
