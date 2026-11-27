@@ -85,3 +85,38 @@ Nenhum dos 8 PNGs do `v2/` vai ao po como está:
 - os PNGs 2 e 4 não saíram do head.
 
 A tela de edição da T-0021 não precisa de PNG ao po se voltar ao `type=date` como era. Se a web quiser manter o campo de texto, aí precisa de simulação própria e do "aprovo" do Alexandre.
+
+---
+
+## Reteste final · head `d1e0034f2d7d86875575f2dcd9264aa9497a40e4` (27/11/2026)
+
+- **PNGs vistos (8):** `sim-t0045/v3/`, telas 1 a 4, no PC e no celular. Foram gerados com o Playwright em pt-BR e no fuso de Manaus.
+- **Os `2-gerente-*` do v3 são idênticos byte a byte aos do v2.** Isso é coerente: a tela do gerente no `d1e0034` é a mesma do `17e7539` (seletor de data, mesmos textos). O render é determinístico com a mesma fixture.
+
+**Resultado: aprovado. Sem 🔴 e sem 🟡 em aberto, na UX e na marca.**
+
+| Achado | Situação |
+|---|---|
+| 🔴 N1: data em texto | ✓ Fechado. `type=date` de volta nas visitas (`max` = hoje) e na edição da T-0021, com `min`/`max` e `atual_iso`. A linha do `editar.html` é igual à do `main` de antes. Os PNGs mostram "21/11/2026" com o calendário, no PC e no celular. O servidor aceita aaaa-mm-dd e dd/mm/aaaa (`ymd_do_form`) |
+| 🟡 N2: diagnóstico aberto | ✓ Fechado. O diagnóstico fica num `<details>` fechado, "Detalhes do diagnóstico". As 5 rodadas cabem a 1366×768, sem rolagem interna, que agora só vale com o detalhe aberto (`:has(.vz-det[open])`) |
+| 🟡 N3: etapa crua | ✓ Fechado. `_andamento` mostra "Entrando na Máxima", "Baixando o dia dd/mm" ou "Enviando", com "(n de N)". A etapa técnica fica só no código do suporte |
+| 🟢 1: rótulo do link | ✓ Feito. O link diz "Atualizar visitas" a 1366 e a 390 e cabe ao lado de "Parcial Visitas" |
+| 🟢 2: largura dos botões | ✓ Feito. "Ligar a agenda" e "Rodar diagnóstico" ocupam a largura toda no celular |
+| 🟢 3: `PARCIAL_TEMPO` | ✓ Feito. O texto agora diz "próxima atualização" |
+
+**Marca:**
+- conforme: placa do logo, faixa `--faixa-inicio` → `--faixa-fim`, texto branco e só tokens do manual;
+- nenhuma largura passa de 1366 nem de 390 px;
+- um botão principal por tela: "Retomar" na pausa e "Atualizar visitas" fora dela.
+
+**🟢 Restantes, para depois:**
+- o `summary` "Detalhes do diagnóstico" tem cerca de 20 px de altura no celular; o alvo pede 44 px (`min-height: var(--alvo)` a ≤ 700 px);
+- os 🟢 de tokens `--c-*`, largura do `.vz`, título dos cartões e confirmação do Retomar seguem da revisão anterior.
+
+**Vão ao po os 8 PNGs do `v3/`:**
+- `1-admin-agenda-desligada-{pc,cel}`
+- `2-gerente-{pc,cel}`
+- `3-pausa-por-codigo-{pc,cel}`
+- `4-cabecalho-farol-visita-{pc,cel}`
+
+A edição da T-0021 voltou exatamente ao que era e não precisa de PNG.
