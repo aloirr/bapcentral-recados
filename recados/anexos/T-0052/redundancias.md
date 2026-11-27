@@ -25,3 +25,26 @@
 - **RD-0238** (modulo-farois): legenda vazia quando `corre`, com simulação do Painel no PC e na web.
 - **RD-0239 e RD-0240** (modulo-web): no mesmo PR da T-0052.
 - **Reteste:** novo head SHA com `pytest web/tests/test_T0034_pagina_inicial.py` verde e print do Resultado sem "projeção do mês" sob os títulos "· proj.".
+
+## Reteste no head `2878e171838948f8bd02854c3cf78edd55ca59ce` (2026-11-27)
+
+- Escopo: o commit `2878e17` (correções) e o diff `origin/main...2878e17`. O `ae1a5d5` é o merge do `main` (T-0050) e não mexe nos arquivos da T-0052 além do `VERSAO`.
+- Evidência: `pytest web/tests/test_T0034_pagina_inicial.py web/tests/test_web.py`: 69 passaram. `pytest tests/test_T0014_recortes_web.py`: 5 passaram. Leitura do diff.
+
+| ID | Situação | Evidência |
+|---|---|---|
+| RD-0238 | **fechado na web** | `render.legenda_do_cartao` (`render.py:72-75`) é usada só em `cartao()`. "projeção do mês" sem número some, e "projeção do mês 66" e "R$ 190 mil" ficam (`test_T0052_legenda_so_com_numero_proprio`). A regra "só com número próprio" está num lugar só: não há outro `isdigit` de legenda na web. No PC, os únicos textos sem número que essa regra corta são `leg_proj` ("projeção do mês" e "fechamento do mês"). O "mês fechado" já está no DU da faixa ("22 DU · mês fechado"), então não se perde informação. |
+| RD-0239 | **aberto (resíduo)** | O parâmetro morto saiu: `faixa_painel(tela_f)`, e `main.py` passa `faixa_ks=[]` na aba RRM e `faixa_painel(None) == []` no teste. **Faltou** tirar as 2 linhas em branco a mais: `render.py:128-131` continuam com 4 linhas em branco entre `abas_no_celular` e `faixa_painel`. Antes → depois: 4 linhas em branco → 2. Baixa, dono modulo-web. |
+| RD-0240 | **fechado** | `bc3-ks not in h` e `count("R$ 165 mil") == 1` ficaram só em `test_painel_no_bc3_com_faixa_abas_e_cartoes`. O teste dos 10 cartões e o `test_T0052_todo_cartao_...` não repetem mais essas checagens. |
+| RD-0241 | **fechado** | O título virou `test_todos_os_cartoes_do_resultado_mostram_numero_e_legenda`, e o comentário U10 ficou sem a divisão "4º cartão em diante". |
+
+### Novo
+- **RD-0242 · texto · média · modulo-farois · fora do lote da T-0052** (não segura este PR, porque não está no diff da web e já existia antes).
+  - Onde: no PC (Tkinter), o Painel do Diretor, aba Resultado, continua com "Faturamento líquido · proj." / "Pedidos faturados · proj." / "Faturamento de peças · proj." e a legenda "projeção do mês" logo abaixo. O texto vem de `painel_rrm.py:390` (`leg_proj`).
+  - A web passou a filtrar a legenda (RD-0238), mas a fonte segue mandando o texto repetido.
+  - Proposta (para o backlog, com simulação): `leg_proj = "projeção do mês" if corre else "fechamento do mês"` → `leg_proj = ""`. Feito isso, `render.legenda_do_cartao` fica sem efeito e pode sair, e a regra volta a ter um lugar só, a fonte.
+- Mais nada: o merge não trouxe CSS, texto nem teste repetido nos arquivos da T-0052.
+
+### Parecer do reteste
+- **1 achado em aberto no lote:** RD-0239 (resíduo), baixa, em código. Pela regra de liberação, segura o lote até tirar as 2 linhas em branco.
+- RD-0242 fica no catálogo para o PC e não entra neste lote.
