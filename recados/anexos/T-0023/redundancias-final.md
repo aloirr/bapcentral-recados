@@ -400,3 +400,110 @@ Vale para estes heads:
 | núcleo, já no main | `9796772` |
 
 Um head novo pede reteste.
+
+---
+
+# Limpeza depois do robô · PR #172 (corretor-redundancias, 27/11/2026)
+
+## Escopo
+- **Branch:** `testes/T-0023-obrigatorios`, head `f357ce12df0ce1495d2c8969f479f1c17831ea8b`, com os commits 474cc87 e f357ce1.
+- **Main:** `d2cd695ed6d181f8dc8c8e4387b196fd4008901a`. A branch já tem o main, com o robô da T-0023 (#171) e os testes da T-0023 (#167).
+- **Diff contra o main:** `git diff origin/main...f357ce1`, 12 arquivos, +58 −102. Fora o doc e o diário, mexe só em `tests/`.
+- **Como conferi:** `grep` de `skip`, `hasattr`, `getattr`, "ainda não entrou" e "pulam" em todo o `tests/` do head; e se cada nome que os pulos testavam existe no `bap_automation.py` do main.
+- **Numeração:** o próximo livre era o RD-0206, porque o RD-0200 e o RD-0201 são da T-0045 e a T-0037 usou até o RD-0205. Os novos vão do **RD-0206 ao RD-0208**.
+
+## Resultado: **não libera**
+São 3 achados baixos:
+- o RD-0206 (doc) e o RD-0208 (código de teste) seguram o lote;
+- o RD-0207 é só comentário e não segura.
+
+## O que a limpeza fechou (conferido)
+- **A ponte do `test_T0021`:** saiu o `_MOTIVO_TEXTO_60` com o `else ba.MOTIVO_TEXTO_WEB`. Os 2 casos usam `ba.motivo_texto_web()`.
+- **Os pulos de módulo:**
+  - saíram os 5 da T-0023: `test_T0023_robo`, `test_T0023_valor_regra` e os 3 `test_T0023_nucleo_*`;
+  - saíram os 3 da T-0021: `EDICOES_WEB`, `MSG_EDICAO_SO_WEB` e `csvs_importar_web`;
+  - saíram os `skipif` "núcleo sem … (f0af112)" do `test_T0023_robo`;
+  - saíram o `if hasattr(rn, …)` e o `pytest.skip` de `tabelas.COLUNAS_RID` do `valor_regra`;
+  - saiu o `return` sem NCC do `test_T0017`.
+- **Imports:** saíram os `# noqa: E402` que só existiam por causa do pulo.
+- **A trava:** os 3 faróis estão no `REGRA_UF_OBRIGATORIOS` (`**FAROIS_T0023`). A conferência de tamanho é uma só: `5 + len(FAROIS_LOTE2) + len(FAROIS_T0023)`.
+- `manter?` · **`REGRA_UF_PERMITIDOS = dict(REGRA_UF_OBRIGATORIOS)` e `FAROIS_PERMITIDOS`** (`escopo_farois_web.py:61-62`).
+  - Hoje os 2 nomes dão o mesmo conjunto.
+  - Ficam porque o `test_T0013_pacote_web.py` e o `test_T0017_tres_farois.py` usam o nome "permitido" como conceito, e o próximo farol "permitido, não obrigatório" (ex.: a T-0036 antes do robô dela) volta a usá-lo.
+
+## Achados novos
+
+### RD-0206 · O doc do testes ainda fala da ordem "testes antes do robô" e do `pl_garantias` "permitido"
+| Campo | Conteúdo |
+|---|---|
+| Onde | `docs/testes/T-0023.md` @ f357ce1: `:26`, `:120` e `:25` |
+| Tipo | doc |
+| O que se repete | 3 trechos dizem um estado que já passou: (1) a `:26` justifica a ordem dos PRs ("…passam nos 2 cenários com esta branch: por isso ela entra antes do robô"), e o robô já está no main; (2) a `:120` diz "era o `pl_garantias`, que agora é permitido", e agora ele é obrigatório; (3) a `:25` diz "Saíram a ponte `FAROIS_T0023` (permitido, não obrigatório)", mas o `FAROIS_T0023` continua e passou a ser obrigatório. O que saiu foi o estado "permitido" |
+| Impacto | leitura: quem lê procura uma ordem de merge e uma ponte que não existem mais |
+| Severidade | baixa |
+| Proposta | **Depois:** a `:26` sai (a rodada 7 já registra os 2 cenários). Na `:25`, "Saíram a ponte `FAROIS_T0023` (permitido, não obrigatório) e os pulos mortos:" vira "O `FAROIS_T0023` deixou de ser só permitido, e saíram os pulos mortos:". Na `:120`, "era o `pl_garantias`, que agora é permitido" vira "era o `pl_garantias`, que agora é obrigatório" |
+| Dono | testes |
+
+### RD-0207 · A docstring do CSV da T-0021 ainda diz que os testes pulam (não segura o lote)
+| Campo | Conteúdo |
+|---|---|
+| Onde | `tests/test_T0021_csv_protheus_robo.py:3-4` @ f357ce1 |
+| Tipo | teste (comentário) |
+| O que se repete | "Os testes entram antes do robô (ordem testes -> robô): sem a função do robô, pulam." O pulo (`if not hasattr(ba, "csvs_importar_web")`) saiu neste PR |
+| Impacto | leitura |
+| Severidade | baixa (só comentário) |
+| Proposta | **Depois:** "Pasta temporária, dados fictícios." |
+| Dono | testes |
+
+### RD-0208 · "Obrigatório fora de FAROIS_WEB reprova" é testado 3 vezes, agora com um 3º laço
+| Campo | Conteúdo |
+|---|---|
+| Onde | `tests/test_T0024_trava_escopo_farois_web.py` @ f357ce1: `:54` (`test_RN_GER_006_trava_reprova_farol_do_lote2_faltando`, laço no `FAROIS_LOTE2`), `:62` (`test_RN_GER_006_trava_reprova_farol_da_T0023_faltando`, novo, o mesmo laço no `FAROIS_T0023`) e `:81` (`test_RN_GER_006_trava_reprova_obrigatorio_faltando_e_repetido`, o mesmo caso com o `vc_visitas`) |
+| Tipo | teste |
+| O que se repete | As mesmas 3 linhas (`sem = tuple(r for r in ba.FAROIS_WEB if r != rid)` e o `assert f"{rid}: obrigatório e fora de FAROIS_WEB" in …`) em 3 testes, só que com conjuntos diferentes. Cada farol obrigatório novo pede mais um teste igual |
+| Impacto | manutenção |
+| Severidade | baixa |
+| Proposta | **Depois:** um teste para todos os obrigatórios. ```@pytest.mark.parametrize("rid", sorted(FAROIS_OBRIGATORIOS)) def test_RN_GER_006_trava_reprova_obrigatorio_faltando(rid): """Qualquer farol obrigatório (T-0017, T-0022, lote 2 da T-0024, T-0023 v2) que sai de FAROIS_WEB reprova.""" sem = tuple(r for r in ba.FAROIS_WEB if r != rid) assert f"{rid}: obrigatório e fora de FAROIS_WEB" in problemas_escopo(_robo(FAROIS_WEB=sem))``` Saem o `:54` e o `:62`. O `:81` fica só com a repetição: `test_RN_GER_006_trava_reprova_farol_repetido` |
+| Dono | testes |
+
+## Fora do escopo deste PR
+
+**Encaminhar ao gerente-projetos: uma tarefa de limpeza.** São pulos mortos de outras tarefas. Todos os nomes que eles testam já existem no `bap_automation.py` do main d2cd695:
+
+| Arquivo | Pulo |
+|---|---|
+| `test_T0014_recortes_web.py:15` | `recortes_por_uf` |
+| `test_T0022_numero_bate.py:14` | `montar_por_uf_web` |
+| `test_T0024_pacote_real_lote2.py:36` e `test_T0024_robo_lote2.py:9` | `params_farol_web`, `RIDS_LIVRES_WEB` |
+| `test_T0024_lote2_robo_web.py:104`, `:124` e `:218` | os 3 skips "PR #89/#91" |
+| `test_T0027_parciais_corte_maquina.py:17` | `_agora_manaus` |
+| `ponta_a_ponta_T0035.py:95` | `enviar_pacote` |
+| `test_T0045_plano.py:24` | `indice_do_pc` (o #152 já entrou) |
+
+Eles são do mesmo tipo do RD-0155 e não são da T-0023.
+
+**Para o `testes`:** a `:120` usa o `vc_markup` como exemplo de "fora da lista". Ele é da T-0036 e vai deixar de estar fora quando o robô da T-0036 entrar.
+
+## Validade
+Vale para o head `f357ce1` do PR #172. Um head novo pede reteste.
+
+## Reteste do PR #172 · 5cd6c26 (27/11/2026)
+- **Head:** `5cd6c26dfce7bd0c7207af52c13c30774d495ab5`.
+- **Main:** `d2cd695`.
+- **Delta:** `f357ce1..5cd6c26`, 1 commit, 4 arquivos, +12 −24.
+- **Resultado:** **libera.** Não há nenhum achado em aberto no PR #172.
+
+| ID | Situação | Evidência |
+|---|---|---|
+| RD-0206 | **fechado** | `docs/testes/T-0023.md`: (1) a linha "…por isso ela entra antes do robô" saiu; (2) a `:25` diz "O `FAROIS_T0023` deixou de ser só permitido, e saíram os pulos mortos"; (3) a `:119` diz "era o `pl_garantias`, que agora é obrigatório" |
+| RD-0207 | **fechado** | A docstring de `test_T0021_csv_protheus_robo.py` diz só "Pasta temporária, dados fictícios." |
+| RD-0208 | **fechado** | `test_RN_GER_006_trava_reprova_obrigatorio_faltando(rid)`, parametrizado em `sorted(FAROIS_OBRIGATORIOS)`, que o arquivo já importa. Saíram os 2 laços (lote 2 e T-0023) e a parte do `vc_visitas`. O caso da repetição ficou sozinho em `test_RN_GER_006_trava_reprova_farol_repetido` |
+
+- **Sem repetição nova:**
+  - no doc, no CSV, na trava e no `escopo_farois_web`, não sobrou "antes do robô", "pulam", "agora é permitido" nem "ponte `FAROIS_T0023`";
+  - o novo teste parametrizado não repete o `test_RN_GER_006_trava_lista_permitida_…`, que confere os conjuntos, e não a reprovação.
+- **O que segue igual ao parecer anterior:**
+  - o `manter?` do `REGRA_UF_PERMITIDOS`;
+  - a recomendação de uma tarefa de limpeza para os pulos mortos das outras tarefas;
+  - o aviso ao `testes` sobre o `vc_markup`.
+- **Validade:** vale para o head `5cd6c26` do PR #172.

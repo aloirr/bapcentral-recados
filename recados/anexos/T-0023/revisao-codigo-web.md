@@ -340,3 +340,80 @@ Cada um com CI verde no head.
 - A trava (`_fonte_ok`) e os 813 testes do cenário B passam.
 - O `5176c2d` (`_corte_aba_web`, RD-0146) já estava no reteste 1.
 - R1 segue: abrir ou atualizar o PR depois do #155 no `main`, com o merge do `main`, para o diff ficar só com o `bap_automation.py`.
+
+---
+
+# Reteste 6: testes `4a135c2` (#167) e robô `7f0a2cf` (27/11/2026, Manaus)
+
+| Head | Parecer |
+|---|---|
+| Testes `testes/T-0023-testes` @ `4a135c2` (#167) | **aprovado**. O C1 está fechado; o 🟡 T5 segue ligado ao robô |
+| Robô `modulo-robo/T-0023-robo` @ `7f0a2cf` | **aprovado**. O R1 está fechado: contra o `main`, o diff é só o `bap_automation.py` (+453 −49) |
+
+## Delta conferido
+
+- **Testes `d17632a` → `4a135c2`:**
+  - `6c45985` é o merge do `main` `ed324ca`. O `--remerge-diff` mostra um conflito só no `.coord/diario/testes.md`, resolvido com as linhas da T-0045 e da T-0023 juntas, nenhuma perdida;
+  - `f6bf862` (RD-0171) e `4a135c2` mexem só no `docs/testes/T-0023.md` e no diário: a rodada 7 e o §4.4 apontam para o §10.9.1 (`0b48e12`);
+  - nenhum arquivo de `tests/` da T-0023 mudou. Contra o `main`, o diff é só `tests/`, `docs/testes/T-0023.md` e o diário.
+- **Robô `03e9c9d` → `7f0a2cf`:** é só o merge do `main`, sem conflito (`--remerge-diff` vazio). O `bap_automation.py` ficou byte a byte igual ao do `03e9c9d`, e o `relatorio_nucleo.py` e o `painel_farol.py` saíram do diff (o #155 está no `main`).
+- `verificar --por-commit`: OK nos 2 (testes com 10 commits, robô com 12).
+- Com o `main` de agora (`4fc6429`, que já tem a T-0036 web 0.8.0 e a T-0037), os 2 entram sem conflito.
+
+## Suítes, no `main` `4fc6429` (repositório de rascunho, Python 3.12 com tkinter)
+
+| Cenário | `pytest tests/` | `web/tests` |
+|---|---|---|
+| A: `main` + testes `4a135c2` (sem o robô) | 703 passed, **1 failed**, 2 skipped (os 2 módulos do robô), 2 xpassed (T-0027) | **575 passed** |
+| B: A + robô `7f0a2cf` | 812 passed, **1 failed**, 0 skipped, 2 xpassed | — |
+
+**A falha não vem destes PRs.**
+- É o `tests/test_T0024_lote2_robo_web.py::test_T0024_pacote_real_do_lote2_pelo_formato2_abre_em_200_e_403_por_perfil`, em `:232`: `set(render.FAROIS["pv_indicadores"][1]) == VE_FAROL["pv_indicadores"]` falha, porque o #158 (T-0036) pôs o `analista` no `render.FAROIS`.
+- Ela falha igual no `main` `4fc6429` **puro** (1 failed e 7 passed nesse arquivo).
+- Nenhum dos 2 PRs mexe nesse arquivo. Com o `main` `ed324ca` (antes do #158), o testes relatou 704 e 813 sem falha, e eu medi o mesmo no reteste 5.
+
+🔴 **No `main` (não nestes heads): `tests/test_T0024_lote2_robo_web.py:232` está vermelho desde o #158.**
+- O `VE_FAROL` do teste precisa do `analista` (RN-GER-017) nos faróis em que o T-0036 o pôs, ou de ler a regra de um lugar só.
+- Dono do arquivo: testes. Origem: T-0036.
+- Enquanto isso não for corrigido, nenhum PR fica com CI verde no head, se o CI roda esse teste.
+- [SUPOSIÇÃO] Pela API, o `4fc6429` não tem check-run. Se o CI do `main` não roda esse teste por falta de alguma variável, o CI dos PRs pode passar mesmo assim, e a falha continua escondida.
+
+**Os números do testes** (rodada 7 no `main` `ed324ca`: 704 e 813, web 523) batem com os meus do reteste 5, que usou a mesma base.
+
+**🟡 T5** (aberto, ligado ao robô): logo depois do robô no `main`, um PR do testes torna os 3 faróis obrigatórios e troca o pulo dos 2 módulos por falha.
+
+---
+
+# Reteste 7: PR #172, testes `testes/T-0023-obrigatorios` @ `5cd6c26` (sobre o `main` `d2cd695`, já com o robô #171) (27/11/2026, Manaus)
+
+**Aprovado.** Isso fecha o 🟡 T5. Revisei o `f357ce1` inteiro e o delta `f357ce1..5cd6c26` (RD-0206 a RD-0208).
+
+## A trava pega um robô sem um dos 3 faróis
+
+- O `FAROIS_T0023` entra no `REGRA_UF_OBRIGATORIOS`, e `FAROIS_PERMITIDOS == FAROIS_OBRIGATORIOS` (13 faróis). O `assert` de tamanho evita repetição.
+- Teste direto no `problemas_escopo`, tirando o farol de `FAROIS_WEB`, `_TABELA_RECORTE_WEB`, `_UF_LINHAS_WEB` e `_FONTE_BAIXADO_WEB` de uma vez (o caso que passava no reteste 5):
+  - `pl_garantias`, `pl_devolucoes` e `pl_ncc` dão, cada um, "obrigatório e fora de FAROIS_WEB";
+  - o robô real dá `[]`;
+  - a NCC pela UF do cliente dá "regra de UF ('UF', 'uf'), esperado ('FILIAL', 'filial')".
+- **Delta `5cd6c26`:** os 3 testes de "obrigatório faltando" (lote 2, T-0023 e o `vc_visitas`) viram um parametrizado, `test_RN_GER_006_trava_reprova_obrigatorio_faltando`, sobre `sorted(FAROIS_OBRIGATORIOS)`.
+  - São **13 casos** coletados, que cobrem os 9 de antes e acrescentam os outros 4 obrigatórios (`pl_inadimplencia`, `pv_pedidos`, `pl_entregas` e `vc_meta`);
+  - a parte da repetição segue em `test_RN_GER_006_trava_reprova_farol_repetido`.
+  - O teste ficou mais forte, não mais fraco.
+
+## Nenhum teste ficou mais fraco ao tirar os pulos
+
+- Saíram só guardas condicionais:
+  - os `pytest.skip(..., allow_module_level=True)` de `test_T0023_robo`, `test_T0023_valor_regra`, dos 3 `test_T0023_nucleo_*`, de `test_T0021_edicao_web_robo` e de `test_T0021_csv_protheus_robo`;
+  - os `@skipif` do ticket de 40, do `prazo_padrao_txt` e do `MSG_EDICAO_SO_WEB`;
+  - o `skip` do `COLUNAS_RID`;
+  - os `if hasattr(...)`/`return` do ticket 40, do `pct_do_liquido` e da colisão "Por supervisor".
+- Em todos os casos, a asserção que estava dentro da guarda passa a rodar sempre. Nenhuma asserção saiu.
+- O `_MOTIVO_TEXTO_60` (ponte) virou `ba.motivo_texto_web()`, que tem o mesmo texto (o teto padrão do núcleo, 60). Os casos "x" * 61 e CPF seguem recusados.
+- O que sobrou de pulo: só o `ba = pytest.importorskip("bap_automation")` do `test_T0024_trava` (o módulo sempre existe), e nenhum skip nos arquivos da T-0023 e da T-0021 do robô.
+- A docstring do `test_T0021_csv_protheus_robo` não fala mais em "pulam" (RD).
+
+## Suítes
+
+- **`f357ce1`, `pytest tests/` completo** (Python 3.12 com tkinter): **814 passed, 0 skipped**, 2 xpassed (T-0027, os de antes). Bate com o relato do autor.
+- **`5cd6c26`, os arquivos que mudaram** (`test_T0024_trava` e `test_T0021_csv`): 24 passed. O resto da árvore de `tests/` é igual ao do `f357ce1`.
+- `verificar --por-commit d2cd695..5cd6c26`: OK (3 commits). Só há `tests/`, `docs/testes/T-0023.md` e o diário.
