@@ -217,3 +217,123 @@
 
 ## Para liberar
 Os 16 achados fechados, com reteste nos novos head SHAs: o diff de cada trecho (antes → depois) e, nos RD-0143 e RD-0144, o print do formulário "Nova garantia".
+
+---
+
+# Reteste 1 · heads novos (corretor-redundancias, 27/11/2026)
+
+- **Heads revisados:** núcleo `f0af112`, robô `371e04c` e web `928b3ea`, todos contra o `origin/main` `30ae65d`. Conferi com `git diff <head antigo> <head novo>` e com o arquivo inteiro de cada head.
+- **Resultado:** **não libera.**
+  - Fecharam 12 dos 16 achados.
+  - Ficam 4 com resto em aberto: RD-0135, RD-0136, RD-0139 e RD-0146.
+  - A correção trouxe 3 repetições novas, todas baixas: RD-0151 a RD-0153.
+- **Numeração:** o maior RD usado nos anexos era o RD-0150, então os novos começam no RD-0151.
+
+## Os 16 achados
+
+| ID | Situação | Evidência no head |
+|---|---|---|
+| RD-0131 | fechado | `git diff origin/modulo-farois/T-0023-nucleo origin/modulo-robo/T-0023-robo -- relatorios_nucleo.py painel_farol.py` = vazio (o robô fez o merge do núcleo `f0af112` em `c5e610f`) |
+| RD-0132 | fechado | o `_eventos_faturamento` chama o `_liquido`; a regra VND − DEV tem uma função só |
+| RD-0133 | fechado | `pd_ = pct_do_liquido(...)` uma vez por cartão, em `devolucoes` e em `_abas_do_painel` |
+| RD-0134 | fechado | o `"garantias"` saiu do `CAMPOS_EDICAO_WEB`; `_campos_garantia_web()` traduz o `CAMPOS_EDICAO_GARANTIA` do núcleo |
+| RD-0135 | **resto em aberto** | abaixo (o `__getattr__`) |
+| RD-0136 | **resto em aberto** | abaixo |
+| RD-0137 | fechado | sai o `REMOVIDO_WEB`; o robô usa o `_rn.REMOVIDO` |
+| RD-0138 | fechado | sai o `_RE_PESSOAL_EDICAO_WEB`; fica só o `_rn.texto_sem_contato(v) != v` |
+| RD-0139 | **resto em aberto** | abaixo |
+| RD-0140 | fechado | `edicoes.campo_tela` é usado pelo `form_ctx` e pelo `novo_ctx`; o `data_max` é público, e o `main.py` não chama mais o `_mais_um_ano` |
+| RD-0141 | fechado | `edicoes.TITULO_SEM_NOVO`, `MSG_SEM_NOVO`, `MSG_FALHA_FILA` e `volta_ed(volta)` nos 2 POST |
+| RD-0142 | fechado | `_CTRL.search(_norm_texto(bruto).replace("\n", ""))` e `edicoes.mostrado(form, c)` nos 2 usos |
+| RD-0143 | fechado | `editar.html:9` = `<p class="sub">{{ tab }}</p>` |
+| RD-0144 | fechado | `editar.html`: a "Sugestão do PC" só aparece com `c.atual != c.padrao` |
+| RD-0145 | fechado | `tabelas._agrupa_ncc(nome)` monta os 3 agrupamentos |
+| RD-0146 | **em aberto** | sem mudança: `_corte_cliente_a_cliente_web` (`bap_automation.py:8644`) e `_corte_historico_web` (`:8652`) seguem com as mesmas 5 linhas |
+
+### RD-0135 (resto) · O `__getattr__` mantém 2 nomes para a mesma frase
+- **Onde:** robô `bap_automation.py:9652-9655`:
+  ```python
+  def __getattr__(nome):
+      if nome == "MOTIVO_TEXTO_WEB":
+          return motivo_texto_web()
+      raise AttributeError(nome)
+  ```
+- **O que mudou:** o 60 duplicado saiu (o `MAX_TEXTO_WEB` não existe mais, e o padrão vem do `_rn.MAX_TEXTO_PADRAO`). A correção trocou a constante por um gancho de módulo (PEP 562) no maior módulo do robô.
+- **O que se repete:** a mesma frase continua com 2 nomes, o `motivo_texto_web()` e o `ba.MOTIVO_TEXTO_WEB`.
+  - O código do robô não usa mais o `MOTIVO_TEXTO_WEB`. Só o usam as 2 linhas de `tests/test_T0021_edicao_web_robo.py:129-130` e o contrato:1082.
+  - O gancho é código que existe só para os testes, e passa a responder por todo atributo que falte no `bap_automation`.
+- **Severidade:** média (manutenção).
+- **Proposta:**
+  - O robô tira o `__getattr__`.
+  - O `testes` troca as 2 linhas por `ba.motivo_texto_web()`.
+  - O `engenheiro-software` troca, no contrato:1082, o "com `MOTIVO_TEXTO_WEB`" por "com `motivo_texto_web(teto)`".
+  - Os 3 vão no mesmo lote.
+- **Donos:** modulo-robo, testes (o arquivo de teste) e engenheiro-software (o contrato).
+
+### RD-0136 (resto) · O 40 do ticket segue no regex do robô
+- **Onde:** robô `bap_automation.py:9661`, `_RE_TICKET_WEB = re.compile(r"^[\w.\-/ ]{1,40}$")`.
+- **O que fechou:**
+  - O núcleo tem o `MAX_TEXTO_EDICAO[("garantias", "ticket")] = 40` e manda o `max` ao pacote.
+  - O robô confere o `len(v) > teto` com o teto do núcleo.
+- **O que se repete:** o 40 ainda aparece 2 vezes, no núcleo e no `{1,40}` do regex. O regex recusa antes, com outra frase (`MOTIVO_VALOR_WEB`), se o núcleo subir o teto.
+- **Severidade:** média.
+- **Proposta:** **Depois:** `_RE_TICKET_WEB = re.compile(r"^[\w.\-/ ]+$")`. O tamanho fica só com o `len(v) > teto`.
+- **Dono:** modulo-robo.
+
+### RD-0139 (resto) · A janela do PC ainda tem a própria cópia da regra da garantia nova
+- **Onde:** `bap_relatorios.py` no head do núcleo (`f0af112`, sem mudança):
+  - `:4330`: `padrao = {"status": "ABERTO", "resultado": "PENDENTE", ...}`;
+  - `:4418`: `_prazo_padrao` (feriados com `try/except` + `gm.prazo_padrao` + `dd/mm/aaaa`);
+  - `:4457-4459`: o prazo igual ao padrão fica em branco;
+  - `:4476`: `campos["origem"] = "FAROL DE GARANTIAS"`.
+- **O que fechou:**
+  - O núcleo tem a regra numa função pura só: `PADRAO_NOVA_GARANTIA`, `ORIGEM_GARANTIA_FAROL`, `prazo_padrao_txt` e `campos_garantia_a_gravar`.
+  - O `edicao_garantia` e o robô (`plano_garantia_web`) usam essas funções.
+  - O `_padrao` do robô saiu.
+- **O que se repete:** de 3 cópias, ficaram 2: o núcleo e a janela do PC. Uma mudança na regra ainda pode valer na web e não no PC. A leitura dos feriados com `try/except` também aparece 2 vezes (`_prazo_padrao` da janela e `aplicar_edicao_web` do robô).
+- **Severidade:** alta (é a mesma regra de negócio, a RN-POS-005).
+- **Proposta (**depois**, no `DialogoGarantia`):**
+  - `:4330` vira `padrao = {**rn.PADRAO_NOVA_GARANTIA, "ticket": self.ticket}.get(campo, "")`;
+  - o `_prazo_padrao` vira `return rn.prazo_padrao_txt(dt_sol, fer)`;
+  - no `salvar`, o bloco `:4457-4459` e a linha `:4476` dão lugar a `campos = rn.campos_garantia_a_gravar(campos, fer, novo=self.novo)`.
+- **Dono:** modulo-farois (`bap_relatorios.py` é dele, como o núcleo).
+
+## Repetição nova trazida pela correção
+
+### RD-0151 · O mesmo módulo é importado 2 vezes, com 2 nomes, na mesma função
+| Campo | Conteúdo |
+|---|---|
+| Onde | robô `bap_automation.py`: `plano_garantia_web`, `:9881` (`import relatorios_nucleo as _rn`) e `:9897` (`import relatorios_nucleo as _rn2`), ambos novos nesta correção; `edicao_web`, `:8152` (`_rn`, no ramo `autorizacoes`) e `:8170` (`_rn2`) |
+| Tipo | código |
+| O que se repete | 2 nomes para o mesmo módulo na mesma função, 2 vezes |
+| Impacto | manutenção (leitura) |
+| Severidade | baixa |
+| Proposta | **Depois:** um só `import relatorios_nucleo as _rn  # noqa: PLC0415` no começo de cada função, e `_rn2.` vira `_rn.` |
+| Dono | modulo-robo |
+
+### RD-0152 · O "código - nome → nome" está escrito 2 vezes na web
+| Campo | Conteúdo |
+|---|---|
+| Onde | web `web/app/main.py`, `resumo_da_linha` (novo: `m = tabelas._RE_COD_NOME.match(v); v = m.group(2) if m else v`) × `web/app/tabelas.py:1272`, `cliente_so_nome` (`m = _RE_COD_NOME.match(...)`, `m.group(2)`) |
+| Tipo | código |
+| O que se repete | a separação código/nome, 2 vezes; o `main.py` usa o `_RE_COD_NOME`, que é privado do `tabelas.py` |
+| Impacto | manutenção |
+| Severidade | baixa |
+| Proposta | **Depois:** no `tabelas.py`, `def cod_e_nome(v: str) -> tuple[str, str]: m = _RE_COD_NOME.match(str(v)); return (m.group(1), m.group(2)) if m else ("", str(v))`, usado pelo `cliente_so_nome` e pelo `resumo_da_linha` (`v = tabelas.cod_e_nome(v)[1]`) |
+| Dono | modulo-web |
+
+### RD-0153 · A regra `.ed-botoes` aparece 2 vezes no CSS
+| Campo | Conteúdo |
+|---|---|
+| Onde | web `web/app/static/estilo.css:357` (`.ed-botoes{display:flex;gap:1rem;align-items:center;margin:1rem 0 .4rem}`) × `:667` (`.ed-botoes{display:flex;gap:.6rem;align-items:center;margin-top:.8rem}`), esta nova |
+| Tipo | código |
+| O que se repete | o seletor e 2 propriedades (`display`, `align-items`), 2 vezes; a 2ª muda o `gap` e o `margin-top`, e o `margin-bottom` fica com a 1ª |
+| Impacto | manutenção: o espaço dos botões depende da ordem das 2 regras |
+| Severidade | baixa |
+| Proposta | **Depois:** só uma regra, na linha 357: `.ed-botoes{display:flex;gap:.6rem;align-items:center;margin:.8rem 0 .4rem}`, e sai a da linha 667 |
+| Dono | modulo-web |
+
+## Para liberar (reteste 2)
+- Fechar os restos dos RD-0135, RD-0136 e RD-0139, o RD-0146 inteiro e os novos RD-0151 a RD-0153.
+- O RD-0135 depende de 3 donos no mesmo lote: o robô, o `testes` e o `engenheiro-software`.
+- Ordem do merge: a mesma do parecer anterior (o núcleo, depois o robô, depois a web).
