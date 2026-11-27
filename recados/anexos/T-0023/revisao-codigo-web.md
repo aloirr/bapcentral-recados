@@ -109,3 +109,172 @@
 
 - Ainda não há PR nem CI no head `3cc4fe0` (consultei pela API REST). O merge pede CI verde no head SHA.
 - O parecer de UX e marca do mesmo head (`revisao-ux-marca.md`) tem **🔴 2 · 🟡 7** em aberto, e o do corretor tem os RD-0140 a RD-0145.
+
+---
+
+# Reteste: 27/11/2026 (Manaus), heads novos da T-0023
+
+| Parte | Branch | Head retestado | Parecer |
+|---|---|---|---|
+| Web | `modulo-web/T-0023-web` | `928b3ea007b44d95cb13afb76088afb47675b8b2` | **aprovado** · 🟢 3 |
+| Núcleo | `modulo-farois/T-0023-nucleo` | `f0af112` | **aprovado** (N1 a N3 fechados; N4 com a simulação) · 🟢 2 |
+| Robô | `modulo-robo/T-0023-robo` | **`08b042f`**: o head andou depois do `371e04c` | sem 🔴 · 🟡 1 (condição de merge) · R1 e R2 seguem como condição |
+
+## O que rodei
+
+- **Web `928b3ea`:** a suíte web deu **459 passed** (eram 454; entraram 5 testes), e o `compileall` está ok.
+- **Ponta a ponta, web `928b3ea` com o pacote real do robô `08b042f`:**
+  - o pacote real foi aceito nos 14 relatórios; a web do `main` só recusa os 3 novos;
+  - a matriz de perfis, o CSRF e a fila vazia ficaram como no primeiro parecer;
+  - os cartões do Resumo do diretor: 6/6, 5/5 e 7/7.
+- **Reenvio sem mudança de cada linha editável:** Garantias **12/12** (era 11/12), NCC 11/11 e Devoluções 3/3 deram "Nada mudou".
+- **Linha nova depois de um 400:**
+  - a página volta com `c_dt_solicitacao` = hoje (ISO), e não vazio;
+  - o reenvio corrigido grava `valores = {"cod_cliente", "ticket"}`, sem `dt_solicitacao` vazio.
+- **Núcleo `f0af112` × `7ebfe4e`:**
+  - `montar` dos 14 faróis com `hoje=24/11/2026` e o mesmo `PYTHONHASHSEED`: tudo igual, menos o `max: 40` do `ticket` (RD-0136);
+  - `pl_devolucoes` de SET, OUT e NOV: só muda o dia 06/10 do "% devolvido do faturado · dia a dia", que ia de −1.636,01 para 0. Os cartões, o "Por vendedor (12 meses)" e o "Devoluções" do Painel Executivo (R$ 5.552, 4,9%) não mudam;
+  - a suíte da raiz no núcleo, com Python 3.12 e tkinter num venv de rascunho: **652 passed, 2 xpassed**.
+- **Robô + testes `25b2633`:** `test_T0021_edicao_web_robo`, `test_T0023_*`, `test_T0013`, `test_T0017` e `test_T0024_trava`:
+  - com o robô `08b042f`: **252 passed, 1 skipped**;
+  - com o robô `371e04c`: falha o `test_RN_GER_011_a_frase_do_texto_leva_o_teto_do_campo`, que exige que o `MOTIVO_TEXTO_WEB` não exista.
+- **Robô com os testes do `main`** (`tests/test_T0021_edicao_web_robo.py`):
+  - `371e04c`: 30 passed;
+  - `08b042f`: **erro de coleta** (`AttributeError: MOTIVO_TEXTO_WEB`).
+- **`verificar --por-commit`** nas 3 branches: OK. `bap_dados.VERSAO` = 27.
+
+## Web `928b3ea`: aprovado
+
+- **🟡 1 fechado:** `_checa` compara os 2 lados no mesmo formato (`v, ref = v.upper(), ref.upper()` sem `caixa`). Teste: `test_RN_GER_012_texto_sem_caixa_com_minuscula_reenviado_sem_mudar_da_nada_mudou`.
+- **🟡 2 fechado:** o `edicoes.campo_tela` converte a data (`br_data`, que aceita ISO), e o `edicoes.mostrado(valores, c)` devolve o `p_` enviado. Teste: `test_RN_GER_012_linha_nova_volta_do_erro_com_datas_e_ticket_mostrado`.
+- **Fechados também:**
+  - 🟢 1: o "[removido]" é conferido com `casefold`, com teste;
+  - 🟢 3: o `p_ticket` passa pelo `RE_CHAVE`;
+  - 🟢 7 e RD-0140 a 0145: um `campo_tela` para os 2 formulários, o `data_max` público, as mensagens únicas (`MSG_SEM_NOVO`, `TITULO_SEM_NOVO`, `MSG_FALHA_FILA`) e o `volta_ed`; o "Sugestão do PC" só aparece quando o ticket mudou; o aviso de dado pessoal aparece uma vez só; o `_agrupa_ncc` serve às 3 tabelas da NCC.
+- **Cidade das Garantias no popup:** a grade fica com 8 colunas, e a CIDADE vai ao bloco "Cliente". A chave e os `cel` não mudam, e a `CIDADE` segue no pacote.
+- **UX:** o formulário largo (`ed-largo`, mais de 6 campos) vai em 4 colunas no PC, com alvos de 44 px no celular. O resumo da linha no Editar segue a `GRADE` (chave, nome e UF). O cliente só com o nome na grade das Devoluções (`cliente_so_nome` com `NF DEV.`) só mexe na tela.
+- 🟢 **W1.** O `main.py` (`resumo_da_linha`) usa a privada `tabelas._RE_COD_NOME`. Ela pode ficar pública, ou o resumo pode ir para o `tabelas`.
+- 🟢 **W2.** O `estilo.css` troca a rolagem lateral das `.filtros.recortes` no celular pela quebra de linha **em todos os faróis**, não só nos 3 novos. O designer-ux confere os outros faróis no reteste dele.
+- 🟢 **W3.** Ficam abertos do primeiro parecer: o 🟢 2 (corte em vez de 413), o 4 (clique duplo), o 5 (aviso de estado nas abas das Garantias), o 6 (asserção fraca da `FILIAL`), o 8 (código de 8 dígitos) e o 9 (conflito com a T-0045 e um reteste depois do merge do `main`).
+
+## Núcleo `f0af112`: aprovado
+
+- **N1 fechado:** o `painel_farol.pct_do_liquido` dá `None` com o líquido ≤ 0, e o `_juntar("pct")` e os 4 usos do farol e do Painel passam por ele. Nos outros faróis, nada mudou em NOV/26 (conferido acima).
+- **N2 fechado:** um `_uteis_ate_ontem(ctx)` serve ao `montar` e ao `ao_mudar` da NCC.
+- **N3 fechado:** o `_liquido` é reusado no `_eventos_faturamento` e no `devolucoes()`. O Painel usa o `atual["real"]`, e o `_painel_devolucoes` usa o `_eventos_faturamento(liquido=True)`. Os números são iguais aos de antes (conferido).
+- **N4:** a simulação está em `antes-depois-devolucoes.md`.
+- **RD-0139:** `PADRAO_NOVA_GARANTIA`, `ORIGEM_GARANTIA_FAROL`, `prazo_padrao_txt` e `campos_garantia_a_gravar` são funções puras no núcleo, e o robô as chama.
+- 🟢 **N6.** O `antes-depois-devolucoes.md` diz que o dia 06/10 fica "—". No gráfico do Resumo, a série leva **0** (`None` vira 0), e um 0% num dia com devolução engana. Sugestão: mandar `null` se o bloco `barras` da web aceitar; senão, corrigir a frase do anexo para "0 no gráfico".
+- 🟢 **N7.** Fora da T-0023: o `vc_painel`, o `pl_giro` e o `pl_frw` mudam a ordem das linhas empatadas entre um processo e outro (ordem de `set`, `PYTHONHASHSEED`). Com a mesma semente, saem iguais. Isso vem de antes, mas faz o "Mudou no PC?" e o sha do pacote variarem sem dado novo. Vale um RD ou uma tarefa à parte.
+
+## Robô `08b042f` (o pedido citava o `371e04c`)
+
+**O `__getattr__` do `371e04c` é aceitável?**
+- Como ponte temporária, sim: o `__getattr__` de módulo (PEP 562) que devolve `motivo_texto_web()` é limpo e não muda o comportamento.
+- Mas ele já saiu no `08b042f` (RD-0135), e os testes `25b2633` exigem que ele não exista. Hoje vale o `08b042f`.
+
+🟡 **R6. Ordem do merge do robô (condição, não defeito):**
+- com o `08b042f`, o `tests/test_T0021_edicao_web_robo.py` do `main` quebra na coleta (`ba.MOTIVO_TEXTO_WEB`), e o CI do PR do robô fica vermelho;
+- **Pronto quando**, uma das duas:
+  - (a) a troca do `test_T0021_edicao_web_robo.py` que vem nos testes `25b2633` (`_MOTIVO_TEXTO_60` com `hasattr`, que passa no robô do `main` e no novo) entra no `main` antes do PR do robô;
+  - (b) o robô volta com a ponte do `371e04c` até os testes entrarem, e ela sai num commit depois.
+
+**O resto do robô:**
+- o `_campos_garantia_web` traduz os campos do `CAMPOS_EDICAO_GARANTIA` do núcleo (RD-0134);
+- o teto, inclusive o do ticket (40), vem do `max_texto_edicao`, e sai o `MAX_TEXTO_WEB`;
+- sem o `_RE_PESSOAL_EDICAO_WEB` e o `REMOVIDO_WEB`, sobram só o `texto_sem_contato` e o `REMOVIDO` do núcleo (RD-0137 e 0138);
+- o `plano_garantia_web` passa pelo `campos_garantia_a_gravar` com o `fer`: o prazo igual ao padrão fica em branco, com a solicitação da garantia existente na edição, e a origem vai só na nova;
+- um `_corte_aba_web` serve aos 2 cortes (RD-0146).
+- R1 (o diff ainda leva o `relatorios_nucleo.py` e o `painel_farol.py` até o squash do núcleo e o merge do `main`) e R2 (a web v2 vai antes) seguem como condições.
+- 🟢 R3: o ticket não passa pelo `texto_sem_contato`; continua aberto, agora com o teto de 40.
+
+## Para o merge (ordem do §10.9.6)
+
+1. Testes PR 1 (destrava), com a troca do `test_T0021_edicao_web_robo.py` (R6 a).
+2. Web `928b3ea`, ou o head depois do merge com a T-0045, com reteste.
+3. Núcleo `f0af112`.
+4. Robô, com o merge do `main` (fecha o R1).
+5. PC só leitura.
+6. Testes finais.
+
+Cada um com CI verde no head.
+
+---
+
+# Reteste 2: web `db0974a` e ponte do `test_T0021` (27/11/2026, Manaus)
+
+**Web `modulo-web/T-0023-web` @ `db0974abca9bfdf25e7e3242b29abc3fbef314d3`: aprovado.** Este parecer troca o do `928b3ea`.
+
+- **Delta revisado:** `git diff 928b3ea db0974a`, 4 arquivos.
+  - **RD-0152:** a `tabelas.cod_e_nome` é pública e serve ao `cliente_so_nome` e ao `resumo_da_linha`. Isso fecha o 🟢 W1. O comportamento é o mesmo: só o nome quando há código, e o valor inteiro quando não há.
+  - **RD-0153:** o `.ed-botoes` repetido saiu e ficou um só.
+  - **Cancelar:** a cor `--texto` agora vem por seletor mais específico, `.ed-botoes a.ed-cancelar`.
+  - **Fixture:** o cinza ficou `#E3E8E4`/`#5E6B63`, ainda fictício.
+  - **Rótulos do gráfico:** `.gb-col .gb-rot` centralizado. Vale em todos os faróis com gráfico de colunas, então entra no 🟢 W2 para o designer-ux.
+- **Suíte web no `db0974a`:** 459 passed. `compileall` ok. `verificar --por-commit 928b3ea..db0974a`: OK.
+
+**🟡 R6 do robô: fecha com a ponte**, com uma condição.
+- A branch `testes/T-0023-ponte-t0021` está em `06107f4`.
+- Ela só muda o `tests/test_T0021_edicao_web_robo.py`, com 8 linhas a mais e 2 a menos.
+- Rodei esse teste com o robô do `main`: 30 passed. Com o robô `08b042f`: 30 passed.
+- `verificar --por-commit`: OK.
+- **Condição:** a ponte entra no `main` antes do PR do robô, com CI verde no head dela. O PR do robô é aberto ou atualizado com o merge do `main` que já traz a ponte, e o CI dele roda verde nesse head. Com isso, o R6 fecha. R1 e R2 seguem como condições de merge.
+
+---
+
+# Reteste 3: merge do `main` (T-0045) na web, PR #154 @ `17722341e2a16aab6c76e2bb195ef0885e64bd13` (27/11/2026, Manaus)
+
+**Aprovado** · 🟢 1. Este parecer substitui o do `db0974a`. A base é o `main` em `4728880` (#151, web 0.6.0 da T-0045).
+
+## Como conferi
+
+- `git show --remerge-diff 1772234`: mostra só a resolução dos 4 conflitos, descontando o que veio do `main`. São eles:
+  - `web/app/__init__.py`;
+  - `web/app/edicoes.py`;
+  - `web/app/static/estilo.css`;
+  - `web/tests/test_T0035_pacote_por_farol.py`.
+- `main.py`, `pacotes.py`, `render.py` e `_bc3_cab.html` entraram por merge automático. `visitas.py`, `visitas.html` e `config.py` ficaram iguais ao `main` (`git diff 4728880 1772234` vazio nesses arquivos).
+- **Suíte web no `1772234`:** **523 passed**, igual ao que o modulo-web relatou. A T-0045 tem 50 testes, entre eles RN-VIS-005 a 008: pausa por código, retomar só pelo admin, tentativa que conta na concessão e lote com dado pessoal que pausa. `compileall` ok.
+- **Ponta a ponta com o pacote real do robô `08b042f`** (as mesmas checagens dos retestes anteriores):
+  - o pacote foi aceito;
+  - "Nada mudou" em todas as linhas editáveis: Garantias 12/12, NCC 11/11 e Devoluções 3/3;
+  - a garantia nova vai na fila com `NOVO-…`, `novo: true` e `antes.ticket`;
+  - depois do 400, a data e o ticket mostrado voltam;
+  - a matriz de perfis e o CSRF dão 403 com a fila vazia;
+  - os cartões do diretor batem: 6/6, 5/5 e 7/7.
+- **Import tardio:** importei, em processos novos, um módulo primeiro de cada vez (`render`, `visitas`, `edicoes`, `pacotes`, `tabelas` e `main`). Em todos, `edicoes._contato("CONTATO CLIENTE")` deu `True` e não houve erro de import circular.
+- `verificar --por-commit db0974a..1772234`: OK. CI do #154 no head: `conferir` ainda em andamento quando conferi; GitGuardian ok.
+
+## `edicoes.py`: nenhuma das 2 filas perde comportamento
+
+- **`Fila.registrar` (T-0021/T-0023)** monta `campos` com `id`, `usuario`, `rid`, `tabela`, `modulo`, `chave`, `valores` e `antes`, mais `novo: true` na linha nova, e chama o `registrar_item` da T-0045. Na linha gravada, só muda a ordem das chaves:
+  - o `quando` é o mesmo (`_quando` = `astimezone(MANAUS)` e o mesmo formato);
+  - o seq é gasto antes da linha;
+  - a tranca é a mesma.
+  A troca no lugar, o "Nada mudou", o `situacao`, a `marca` e o `contagem_novas` não mudam: o reenvio e a contagem "N · Aguardando o PC" passaram.
+- **`registrar_item` (T-0045)** ficou igual ao do `main`: `antes_de_gravar(seq)` dentro da tranca e antes da linha, e o `**campos`. As filas são separadas por `subpasta` e `prefixo`. O `tentativas_hoje` e a pausa por código ficam no `visitas.py`, que não mudou.
+- **Import tardio de `coluna_fora`** em `_contato()`: é seguro, porque só roda em tempo de chamada (no `erro_spec`, ao receber o pacote), com todos os módulos carregados. O custo é uma busca no `sys.modules`.
+- 🟢 **M1.** O `from .render import coluna_fora` ficou **antes** da docstring de `_contato` (`edicoes.py:86`). A docstring virou uma expressão solta, e o `_contato.__doc__` passa a ser `None`. Sugestão: pôr o import depois da docstring, sem mudar o comportamento.
+
+## Outros conflitos
+
+- `__init__.py` fica em 0.7.0, e o `test_T0035` também confere 0.7.0. Isso está certo, porque a T-0045 entrou como 0.6.0.
+- No `estilo.css`, os blocos `.ed-*` (T-0023) e `.vz-*` (T-0045) ficam inteiros e seguidos, e nenhuma regra se perdeu.
+- O `FORM_MAX` passa para 32 KB em todos os formulários, inclusive os da T-0045. O contrato §10.9.1 permite, e nenhum teste da T-0045 depende dos 16 KB.
+
+**Condição de merge:** CI verde no `1772234`.
+
+---
+
+# Reteste 4: PR #154 @ `5c467217a197429e49c95232eb535e443a4d287a` (27/11/2026, Manaus)
+
+**Aprovado.** Este parecer substitui o do `1772234`. Li o delta inteiro (`git diff 1772234 5c46721`, 2 arquivos), e o comportamento não muda.
+
+- **M1 fechado:** o import tardio veio para depois da docstring, e `edicoes._contato.__doc__` volta a ser a docstring (conferido).
+- **RD-0165:**
+  - o `_checa` usa o `data_max(hoje)`, que é o mesmo `_mais_um_ano(hoje)`;
+  - a `_texto_form(c, s)` (normaliza o texto e põe em maiúsculas sem `caixa`) troca as 2 contas iguais, no `_checa` (os 2 lados) e no obrigatório do `valores_do_novo`;
+  - o resultado é igual, linha a linha.
+- **RD-0164:** os alvos de toque do celular voltam a um `@media(max-width:700px)` só, agora com `var(--alvo)` (= 44px, `estilo.css:96`). O bloco subiu, mas `.ed-botoes .ed-cancelar` (0,2,0) segue mais forte que o `.ed-cancelar{min-height:36px}` que vem depois, e nenhuma regra posterior mexe nos outros seletores. A tela fica igual.
+- **Suíte web no `5c46721`:** **523 passed**. `compileall` ok. `verificar --por-commit 1772234..5c46721`: OK.
+- **Condição de merge:** CI verde no `5c46721`.
