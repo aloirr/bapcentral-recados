@@ -1,0 +1,74 @@
+/* T-0050 (simulação do designer-ux, v2 com os 🟡 do revisor-ux e da marca): proposta de CSS para o painel "Faróis"
+   e o "Novo usuário" da tela Usuários. Só tokens do manual (estilo.css :root). Quem aplica é o modulo-web. */
+.u-farois>summary::-webkit-details-marker{display:none}
+/* MC-0028: aberto, o "Faróis" não fica verde (o verde-claro é só do "liberado") */
+.u-farois[open]>summary{background:var(--fundo);border-color:var(--suave)}
+/* PC: o painel abre embaixo da linha, na largura da lista, por cima das linhas seguintes */
+.u-linha{position:relative}.u-acoes .u-farois{position:static}
+.u-farois[open]>form{position:absolute;left:8px;right:8px;top:calc(100% - 4px);z-index:25;width:auto;
+  background:var(--cartao);border:1px solid var(--borda);border-radius:var(--raio);box-shadow:0 10px 28px var(--c-0000001f);
+  padding:14px 16px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 0;margin:0;white-space:normal}
+.f-partes{grid-column:1/-1;display:grid;grid-template-columns:minmax(230px,.8fr) minmax(0,3fr);gap:0 20px}
+.f-parte{border:0;margin:0;padding:0;min-width:0}
+.f-parte+.f-parte{border-left:1px solid var(--borda);padding-left:20px}
+/* MC-0030: título de bloco 16 px, peso 600; UX 3: só "Do perfil", sem o perfil e sem a contagem */
+.f-parte>legend{padding:0;font-size:16px;font-weight:600;color:var(--texto)}
+/* MC-0031 / UX 4: apoio em 12 px */
+.f-nota{margin:2px 0 8px;font-size:12px;color:var(--suave);line-height:1.35}
+/* os grupos em colunas que se equilibram (o "liberado" não quebra a 1366) */
+.f-grupos{display:grid;gap:8px 18px}
+.f-lib .f-grupos{display:block;columns:3;column-gap:18px}
+.f-grupo{break-inside:avoid;padding:4px 0 6px}
+/* UX 1: sem a parte "Liberar" (Admin, Diretor, Gerente, Analista), a parte "Do perfil" usa a largura toda, em 5 colunas */
+.f-partes:not(:has(.f-lib)){grid-template-columns:minmax(0,1fr)}
+.f-partes:not(:has(.f-lib)) .f-perfil .f-grupos{grid-template-columns:repeat(5,minmax(0,1fr))}
+.f-grupo h3{margin:0 0 2px;font-size:var(--t-rotulo);font-weight:600;color:var(--suave);text-transform:uppercase;letter-spacing:.07em}
+.f-item{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;min-height:28px;font-size:var(--t-corpo);color:var(--texto);cursor:pointer}
+.f-nome{white-space:nowrap}
+.f-item input{width:18px;height:18px;margin:0;padding:0;accent-color:var(--verde-escuro);flex:none}
+/* UX 4: a marca do painel é o próprio .selo da linha (selo-tirado / selo-liberado); aparece só quando difere do perfil */
+.f-tag{display:none}
+.f-perfil .f-item:has(input:not(:checked)) .f-nome{color:var(--suave);text-decoration:line-through}
+.f-perfil .f-item:has(input:not(:checked)) .f-tag,.f-lib .f-item:has(input:checked) .f-tag{display:inline-block}
+/* o pé: "Alterado em" à esquerda e o botão à direita (no celular, só o botão fica fixo) */
+.f-quando{grid-column:1;margin:0;font-size:12px;color:var(--suave);align-self:center}
+.f-rodape{grid-column:2;display:flex;justify-content:flex-end;padding-left:12px}
+.u-farois .f-partes{border-bottom:1px solid var(--borda);padding-bottom:10px}
+.f-partes+.f-rodape{grid-column:1/-1}
+/* MC-0029: botões do pé com o tamanho de botão (14 px) */
+.f-rodape button{min-height:36px;font-size:var(--t-corpo)}
+/* mensagem de retorno: o mesmo p.ok / p.erro de hoje, com respiro antes do botão */
+.bc3-corpo>.ok,.bc3-corpo>.erro{margin:0 0 10px}
+/* selos da linha (MC-0032: o peso é o do .selo) */
+.selo-tirado{background:var(--fundo);border:1px solid var(--borda);color:var(--texto)}
+.selo-liberado{background:var(--verde-claro);color:var(--texto)}
+/* Novo usuário: os campos numa linha e as duas partes embaixo */
+.u-novo-campos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.u-novo-form .f-partes{border:1px solid var(--borda);border-radius:var(--raio);padding:12px 14px}
+.u-novo-form .f-rodape{border:0;padding:0;justify-content:flex-start}
+/* UX 2: no PC, o "Novo usuário" abre por cima da lista, como o painel Faróis (a página fica em 768 px) */
+@media(min-width:701px){
+  .u-novo{position:relative}
+  .u-novo[open]>form.u-novo-form{position:absolute;left:0;right:0;top:44px;z-index:26;width:auto;max-width:none;margin:0;
+    box-shadow:0 10px 28px var(--c-0000001f);border:1px solid var(--borda)}
+}
+@media(max-width:700px){
+  .u-farois[open]{flex:1 1 100%}
+  .u-farois[open]>form{position:static;display:grid;grid-template-columns:1fr;width:auto;box-shadow:none;margin-top:8px;padding:12px}
+  .u-selos{grid-column:1/-1;grid-row:auto;justify-content:flex-start}.u-selos:empty{display:none}
+  .f-partes{grid-template-columns:1fr;gap:14px}
+  .f-partes:not(:has(.f-lib)) .f-perfil .f-grupos{grid-template-columns:1fr}
+  /* a divisória vai na legenda: ela não corta mais o "Liberar além do perfil" */
+  .f-parte+.f-parte{border-left:0;padding-left:0}
+  .f-parte+.f-parte>legend{display:block;width:100%;border-top:1px solid var(--borda);padding-top:12px}
+  .f-lib .f-grupos{columns:1}
+  .f-item{min-height:var(--alvo)}
+  .f-item input{width:22px;height:22px}
+  /* só o botão fica fixo no pé (~60 px), com o "Alterado em" no fluxo, acima */
+  .f-rodape{grid-column:1;position:sticky;bottom:0;background:var(--cartao);border-top:0;padding:8px 0;margin-top:-2px;box-shadow:0 -1px 0 var(--borda)}
+  .f-rodape button{min-height:var(--alvo);flex:1 1 100%}
+  .u-novo-campos{grid-template-columns:1fr}
+  .u-novo-campos input,.u-novo-campos select{min-height:var(--alvo)}
+}
+@media(prefers-reduced-motion:no-preference){.u-farois[open]>form{animation:f-abre .16s ease-out}}
+@keyframes f-abre{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}

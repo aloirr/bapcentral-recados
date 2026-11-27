@@ -284,3 +284,70 @@
 - Os RD-0159, RD-0160 e RD-0161 fechados no head novo do `testes`. O RD-0162 pode ir junto ou no lote seguinte.
 - Os RD-0162 e RD-0170 não seguram o lote.
 - Este reteste vale para a81a1b0 (contrato), 03e9c9d (robô) e 5c46721 (web). Um head novo pede reteste.
+
+---
+
+# Reteste 2 · testes d17632a e o que mudou no main (corretor-redundancias, 27/11/2026)
+
+## Escopo
+- **Testes:** `testes/T-0023-testes` `d17632a6cdf99f06fe36739616c4d3ca42672f80`. Conferi o delta `25b2633..d17632a`: 48973a1 (os RDs), d17632a (doc e diário) e o merge do main 4728880.
+- **O main andou durante a revisão:** agora está em `ed324ca`, com a T-0023 web (#154, e1d80a8), o núcleo (#155, ac33219), a ponte (#153, ed324ca), a T-0036 (#156, #157, #160) e a T-0045 (#152, #161).
+- **Heads novos das outras branches**, todos conferidos:
+
+| Branch | Head | O que mudou |
+|---|---|---|
+| núcleo | `9796772` | só o merge do main |
+| robô | `7f0a2cf` | só o merge do main; o `bap_automation.py` está igual ao do 03e9c9d |
+| web | `9e53432` | o RD-0170 |
+| contrato | `0b48e12` | §10.9.1 |
+
+- **Numeração:** o próximo livre era o RD-0171, então o achado novo é o **RD-0171**.
+
+## Resultado: **não libera por 1 achado** (RD-0171)
+Ele é do `testes`. É uma frase do doc que ficou velha quando o contrato 0b48e12 entrou.
+
+## Os achados
+
+| ID | Situação | Evidência |
+|---|---|---|
+| RD-0159 | **fechado** | `docs/testes/T-0023.md` §5 diz só "O teste segue o §10.10.3, "Onde o `testes` procura" (fonte da verdade), sem afrouxar…". As 4 regras reescritas e o pedido já atendido saíram. O cabeçalho do §1 agora é o da rodada 6, que vale |
+| RD-0160 | **fechado** | `test_RN_GER_002_resumo_06_10_sem_percentual_negativo` saiu do `nucleo_pct_du` (o `RAIZ` também). O `valor_regra:511-517` confere todas as séries de todos os gráficos "% devolvido do faturado". Fica um `montar` real só |
+| RD-0161 | **fechado** | `nucleo_rd:54` só tem `assert por["ticket"]["max"] == 40` |
+| RD-0162 | **fechado** | `robo:405` `test_RN_POS_005_plano_da_garantia_usa_a_regra_do_prazo_do_nucleo`; `robo:507` `# RD-0135: …`. O doc (5.5) cita os 2 nomes |
+| RD-0170 | **fechado** | no main (e1d80a8) e em 9e53432: "/* T-0023 v2 (UX R2 e A4): no celular, o rótulo longo do cartão se divide e os alvos têm --alvo */" e "/* T-0023 v2 (UX A1/A2): … sem rolar */" |
+| RD-0156, 0157, 0158, 0163 a 0166 | **fechados** (reteste 1) | Os heads novos não mexeram nesses trechos. O contrato 0b48e12 reescreveu o §10.9.1 sem repetir o 60 (abaixo) |
+| RD-0139 e #105 | **fora do lote** | PR 2 de faróis |
+| RD-0167 | **fora do lote** | T-0049 |
+
+## Achado novo
+
+### RD-0171 · O doc do testes diz que o contrato descreve outro momento, e o contrato já foi corrigido
+| Campo | Conteúdo |
+|---|---|
+| Onde | `docs/testes/T-0023.md:102` @ d17632a (§4.4, 1º item) × `.coord/contratos/relatorio.md` §10.9.1 @ 0b48e12 (os itens "Na montagem do pacote" e "Na hora de aplicar a edição") |
+| Tipo | doc |
+| O que se repete | A mesma regra (`max` diferente na montagem = `ValueError` e tabela sem `edicao`; na aplicação = `motivo_texto_web(teto)`) aparece nos 2 docs. O doc do testes cita o contrato @ 077ef26 e diz "a frase do contrato é que descreve outro momento. Dono da frase: engenheiro-software". O 0b48e12 resolveu isso, e agora o §4.4 aponta uma divergência que não existe mais |
+| Impacto | decisão: quem lê o doc do testes acha que ainda há uma pendência no contrato |
+| Severidade | média |
+| Proposta | **Depois** (`:102`): "- **Contrato × robô, `max` diferente do núcleo:** resolvido no contrato §10.9.1 (0b48e12, fonte da verdade), que separa a montagem do pacote da aplicação da edição. Teste: `test_RN_GER_012_o_max_vem_do_nucleo_e_a_spec_diferente_nao_vai`." O 2º item do §4.4 ("baixado em" das Garantias, pergunta ao po) fica |
+| Dono | testes |
+
+## Sem repetição nova
+- **Contrato 0b48e12:** o "sem ele, `MAX_TEXTO_PADRAO`" do item 1 fala do `max` ausente na spec do PC, e o da frase fala do `maximo` ausente na função. São 2 fatos diferentes, e a fonte do número é uma só.
+- **Main × heads restantes:**
+  - A T-0036 (#160) cita o `texto_sem_contato` (§10.11) sem copiar padrões.
+  - O `codigo_do_cliente` do núcleo (T-0036) e o `tabelas.cod_e_nome` da web são as 2 pontas PC × Render (redundância útil). O robô da T-0023 não tem uma terceira versão.
+- **Merge pendente, sem redundância:** o `git merge-tree` com o main dá conflito só nos diários. No testes é o `.coord/diario/testes.md`; no contrato, o `.coord/diario/engenheiro-software.md`. O robô e o núcleo entram sem conflito.
+
+## Para liberar
+- O RD-0171 fechado no head novo do `testes`.
+- Depois do merge do robô, a ponte do `test_T0021` (`manter?`, PR #153, já no main) e os `skipif` "núcleo sem … (f0af112)" saem no lote seguinte.
+- Este reteste vale para:
+
+| Branch | Head |
+|---|---|
+| testes | `d17632a` |
+| robô | `7f0a2cf` |
+| contrato | `0b48e12` |
+| web (já no main) | `9e53432` |
+| núcleo (já no main) | `9796772` |

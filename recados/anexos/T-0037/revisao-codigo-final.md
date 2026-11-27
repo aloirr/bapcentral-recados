@@ -132,3 +132,131 @@ A mudança veio do revisor-ux (ffee80d). A correção é deixar o contrato só c
 7. Depois, uma tarefa pequena do testes torna o `pl_fretes` obrigatório na trava.
 
 Cada head novo (testes, engenheiro, web e regras) precisa de releitura no SHA novo.
+
+---
+
+# Releitura 2 — heads novos (27/11/2026, Manaus)
+
+- **Base:** `origin/main` 4728880 (#151). Os 5 heads fazem merge limpo com ele.
+- **Modo:** clone de rascunho fora do repositório (`git clone --shared` e merges locais), sem troca de branch no repositório.
+- **Ambiente:** Python 3.13 sem tkinter. Por isso o `tests/test_T0021_edicao_web_robo.py` não é coletado (importa o `bap_relatorios`). A falha é do ambiente: o CI tem tkinter.
+- **Web fora desta rodada.** O c52d353 dá conflito com o `main` 4728880, como já era esperado.
+- **Vale para estes heads.** Commit novo pede releitura.
+
+| Branch | Head | Parecer |
+|---|---|---|
+| `gerente-projetos/T-0037-regras` | b28f09d | **aprovado** (Y1 fechado) |
+| `testes/T-0037-fretes` | 2b822d2 | R1 fechado · **🟡 1** (T1) |
+| `engenheiro-software/T-0037-desenho` | 27306a0 | Y2 e Y3 fechados · **🟡 1** (C1) |
+| `modulo-farois/T-0037-fretes` | c53fc41 | **aprovado** (sem mudança) |
+| `modulo-robo/T-0037-fretes` | f361173 | **aprovado** (🟢) |
+
+## Os achados da releitura anterior
+
+- **R1 fechado (testes).**
+  - Os 2 testes de colunas ignoram o `pl_fretes` nos dois lados enquanto ele não estiver em `ba.FAROIS_WEB`. Isso está em `_RIDS_POR_PARTES_WEB` e `_rids_ignorados_web` (`tests/test_T0017_pacote_tres_farois.py`).
+  - A trava aceita o `pl_fretes` como permitido, mas não como obrigatório (`FAROIS_T0037`).
+  - Medido por mim:
+
+| Combinação sobre o main 4728880 | Resultado |
+|---|---|
+| regras + testes, `pytest tests` inteiro | ✅ 628 passam, 3 pulados, 2 xpassed |
+| regras + testes + contrato, inteiro | ✅ 628, 3 pulados |
+| regras + testes + contrato + faróis, testes acoplados¹ | ✅ 131, 3 pulados |
+| regras + testes + contrato + faróis + robô, **sem a web**, acoplados | ❌ só o `test_T0017_colunas_robo_igual_web` (o robô não pode vir antes da web) |
+| só o robô, acoplados | ❌ 5 (a trava e as colunas; o robô não pode vir antes dos testes) |
+
+¹ Os testes acoplados são `test_T0024_trava_escopo_farois_web`, `test_T0017_pacote_tres_farois`, `test_T0017_tres_farois`, `test_T0024_lote2_robo_web`, `test_T0024_robo_lote2`, `test_T0035_robo_web`, `test_T0017_farol_web_robo` e os `test_T0037_*`.
+
+  - [SUPOSIÇÃO] As combinações com a web vêm do `docs/testes/T-0037.md`, que usou a web a350b75. Elas precisam ser refeitas com o head novo da web.
+
+- **Y1 fechado (regras).** O PR só traz o `docs/produto/03-regras.md` (+4 linhas, RN-POS-007 a 010). O relato da sessão está em `recados/anexos/T-0037/relato-sessao-tarefa.md`.
+
+- **Y2 fechado (contrato §10.12.3), por outro caminho.**
+  - A lista da grade continua escrita no contrato, mas agora é igual à `tabelas.GRADE[("pl_fretes", "Notas com frete")]` da web c52d353: 9 colunas, `cel` sem a ETAPA, `blocos` Nota/Entrega e a justificativa do 1366.
+  - O risco de duplicação ficou como 🟢 (abaixo).
+
+- **Y3 fechado.** O desenho cita os 5 campos do `CAMPOS_LUGAR_WEB`, sem o `frete_real`:
+  - §6, linha "`EDICOES_WEB`, `CAMPOS_EDICAO_WEB` e `CAMPOS_LUGAR_WEB`";
+  - §4.1, item 3;
+  - §7.1.
+
+- **Renumeração §10.11 → §10.12: certa.**
+  - A §10.11 é dos faróis do Analista (`engenheiro-software/T-0036-desenho` 533707a).
+  - Nenhuma citação "§10.11" sobrou nos diffs da T-0037.
+  - Os dois desenhos dão conflito entre si no `relatorio.md` e no diário do engenheiro, porque os dois acrescentam depois da §10.10. Quem entrar depois precisa de um merge do main, e isso gera um **head novo, que pede releitura**.
+
+- **Y4 (web):** fora desta rodada. Releio no head novo da web.
+
+## 🟡 Corrigir antes do merge
+
+**C1 — `engenheiro-software/T-0037-desenho` 27306a0: o contrato não descreve o Resumo que o robô manda.**
+
+O que o contrato e o desenho dizem hoje:
+- `.coord/contratos/relatorio.md:1467-1468` (§10.12.2): o gráfico vai "pela lista `_GRAFICOS_NO_PAINEL_WEB` da T-0023" e, "enquanto o robô da T-0023 não estiver no `main`, o farol vai só com os cartões";
+- `docs/desenho/T-0037.md:108`, `:149` e `:212` repetem: o gráfico só depois da T-0023.
+
+O que o robô f361173 faz:
+- monta o Resumo em `bap_automation.blocos_resumo_fretes_web` (`bap_automation.py:6951`), com `_TIPOS_BLOCO_EXTRA_WEB["pl_fretes"] = ("tabela",)`;
+- 1 bloco `barras` (12 meses);
+- 3 blocos `tabela` com o título e o mês ("Por UF (NOV/26)" e as outras duas). Cada um tem as colunas `<rótulo>`, NOTAS, VLR NF e VLR FRETE, a linha `total` ("TOTAL", soma sem arredondar) e os rótulos "Sem UF", "Sem cidade / UF" e "Sem transportadora";
+- 1 bloco `insights` "Resumo gerencial" com as 2 frases, que vão também em `insights_painel`.
+
+A web vai ser refeita em cima desse pacote, e o contrato é a ponte.
+
+Correção (dono: engenheiro-software): descrever esse Resumo no §10.12.2 e tirar o "só com os cartões" (contrato e desenho). Pode citar a função como fonte, sem copiar as frases.
+
+**T1 — `testes/T-0037-fretes` 2b822d2: o teste da frase da UF confere outro critério.**
+- O `tests/test_T0037_fretes_resumo.py:109-125` (`test_T0037_resumo_frase_de_uf_bate_com_a_tabela`) diz e confere "a UF com **mais notas**": `lin[uf][1] == max(x[1] ...)`, na linha 124.
+- O robô escolhe a UF de **maior VLR NF**: `topo = max(ufs_ok, key=lambda x: x[2])`, em `bap_automation.py:7011`. A transportadora segue o mesmo critério, na linha 7020.
+- Nas bases congeladas, a UF com mais notas e a de maior valor são a mesma, por isso o teste passa. Mas ele não prova a regra.
+
+Correção:
+- conferir pelo VLR NF (`x[2]`);
+- acrescentar um caso sintético em que a UF com mais notas não é a de maior valor;
+- se o critério combinado com o designer-ux for "mais notas", o pedido vai ao modulo-robo, e não se muda o teste.
+
+## 🟢 Sugestões
+
+**Robô (f361173)**
+- A docstring do `blocos_resumo_fretes_web` cita "contrato 10.8". O certo é a §10.12.2, depois do C1.
+- As 2 frases vão duas vezes no pacote: no bloco `insights` e em `insights_painel`. A web usa o `insights_painel` primeiro (`web/app/render.py:671` do main, `_insights(insights_painel) or ins_blocos`), então o bloco nunca aparece. Basta mandar um dos dois.
+- `nomes.index("NOTAS")`, `"VLR NF"` e `"VLR FRETE"` (linha 6983) não estão na guarda, que só confere o `MÊS` e o rótulo. Se o PC renomear uma coluna, sai `ValueError`, em vez de a tabela ficar de fora.
+- A frase da UF exige mais de uma linha. A da transportadora sai mesmo com uma só ("leva 100% do valor").
+- Depois da T-0023, o gráfico em `barras` pode reusar o `_GRAFICOS_NO_PAINEL_WEB` (contrato `:1325`) em vez de um 3º caminho (os outros dois são o Fretes e os `RIDS_LIVRES_WEB`). Fica para o corretor-redundancias.
+
+**Contrato**
+- A grade do Fretes está escrita no §10.12.3 e na `tabelas.GRADE`. Um teste que compare as duas, ou uma remissão à `GRADE` como fonte, evita que elas se separem.
+
+**Testes**
+- No `docs/testes/T-0037.md:85`, a observação sobre o `MOTIVO_CAMPO_WEB` está velha: o §10.12.4 já cita o `MOTIVO_LUGAR_WEB`.
+- A tabela de combinações cita o contrato 0884880 e a web a350b75.
+
+**Quadro (main, gerente)**
+- A linha da T-0037 em `.coord/quadro.md:61` ainda aponta para `docs/status/T-0037-sessao.md`. O certo é `recados/anexos/T-0037/relato-sessao-tarefa.md`.
+
+## Conferido no código novo do robô
+
+- **Função pura.** O `blocos_resumo_fretes_web(r)` só lê o dicionário do `montar` (`graficos`, `tabelas`, `filtros`) e devolve `(blocos, frases)`. Ele não faz leitura nem escrita e não abre arquivo. Os números saem das tabelas do PC, sem refazer a regra. O formato do texto usa `relatorios_nucleo.br`, `p`, `pct_de` e `moeda`, que já existem.
+- **Número × cartão (RN-POS-009).**
+  - O TOTAL de cada uma das 3 tabelas é igual ao cartão "Notas com frete" (nº e VLR NF do detalhe) e ao "Frete estimado". Os 3 TOTAIS são iguais.
+  - A soma das linhas, já arredondadas, difere do TOTAL em no máximo meio centavo por linha, como está documentado.
+  - O Fretes não vai ao Diretor (RN-GER-014: ele vê só o Resumo, que é este mesmo).
+- **Regra 6.** Os blocos só têm UF, cidade e transportadora. O CLIENTE e o RESPONSÁVEL não entram. O `test_RN_GER_011_resumo_sem_dado_pessoal` procura CNPJ, e-mail, telefone e os nomes de cliente da base no painel e nas frases. Os blocos `tabela` ainda passam pelo filtro `_COLUNAS_PESSOA_TABELA_WEB` do `selecionar_farol_web`.
+- **Configs.** O diff do robô não lê nenhum `.json`. O `transportadoras_config.json` continua só lido pelo núcleo. Nenhum arquivo proibido (`tomtom_config*`, `google_maps_config*`, `visitas_config.json`, `auth/`, `.env`) foi lido, nem por mim. Não há segredo nos diffs.
+- **`bap_dados.VERSAO` = 27** no main e nas 5 branches. Não há regra de cache nova.
+- **Donos.** `verificar --por-commit origin/main..<head>` está OK nas 5 branches (4, 7, 5, 7 e 8 commits). `compileall` está OK na árvore combinada.
+- **Tela.** O Resumo muda o que aparece no site, e a simulação (regra 10) depende da web nova. Antes do merge da web e do robô, falta a simulação do Resumo aprovada pelo po, por delegação.
+
+## Ordem de merge (confirmada, com condições)
+
+1. **`gerente-projetos/T-0037-regras`** b28f09d.
+2. **`testes/T-0037-fretes`**, depois do T1. Passa sozinho no `main`, e os `test_T0037_*` ficam pulados.
+3. **`engenheiro-software/T-0037-desenho`**, depois do C1 e do merge do main com o #160 (T-0036), se ele entrar antes. Pede releitura no head novo.
+4. **`modulo-web/T-0037-fretes`**, com o merge do main, o Y4 e a fixture do Resumo f361173. Pede releitura e as combinações refeitas (contrato + web + testes; todos). Publicar e conferir o `/saude` antes de o robô chegar à produção.
+5. e 6. **`modulo-farois/T-0037-fretes`** c53fc41 e **`modulo-robo/T-0037-fretes`** f361173, um logo depois do outro e na mesma janela da rotina diária (o `EDICAO_SO_WEB` do PC não chega antes do robô).
+   - Os faróis podem entrar antes da web sem quebrar o CI (medido).
+   - O robô **não**: sem a web, o `test_T0017_colunas_robo_igual_web` cai.
+7. Depois, uma tarefa do testes torna o `pl_fretes` obrigatório na trava e tira o `_RIDS_POR_PARTES_WEB`.
+
+Cada PR precisa de CI verde no próprio head.

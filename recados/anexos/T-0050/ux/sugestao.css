@@ -1,0 +1,13 @@
+/* sugestões do designer-ux revisor (T-0050) */
+.f-partes:not(:has(.f-lib)){grid-template-columns:minmax(0,1fr)}
+.f-partes:not(:has(.f-lib)) .f-perfil .f-grupos{grid-template-columns:repeat(5,minmax(0,1fr))}
+.f-parte>legend small{font-size:var(--t-tabela)}
+.f-nota,.f-quando{font-size:12px}
+.f-tag{font-size:.78rem;font-weight:700;border-radius:10px;padding:.1rem .55rem}
+@media(max-width:700px){.f-partes:not(:has(.f-lib)) .f-perfil .f-grupos{grid-template-columns:1fr}}
+
+/* D4: o "Novo usuário" abre por cima da lista, como o painel Faróis (a página fica em 768 px) */
+@media(min-width:701px){
+.u-novo{position:relative}
+.u-novo[open]>form.u-novo-form{position:absolute;left:0;top:44px;z-index:26;right:0;width:auto;max-width:none;margin:0;box-shadow:0 10px 28px var(--c-0000001f);border:1px solid var(--borda)}
+}
