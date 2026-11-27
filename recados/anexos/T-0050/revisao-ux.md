@@ -320,3 +320,33 @@ No PR do código, conferir três coisas:
 | 🟢 | 11–13 | várias | ver acima | — | PR / backlog |
 
 **Para aprovar:** um commit novo com C1 e C2, mais os PNGs `4-novo-usuario-pc` e `7-farois-trade-pc` refeitos no novo head SHA. Eu meço de novo no servidor.
+
+---
+
+## Reteste do código (e0a17f6)
+
+- **O que revisei:** a branch `modulo-web/T-0050-acesso-usuario`, **head SHA `e0a17f6e2c063a17d00a1a1a5d98f938976f6a22`**. Ela traz o `36b059e` (C1, C2 e RD-0182 a 0191) e o merge do `main`. Olhei o diff de `estilo.css` e `usuarios.html` desde o `a5e723b` e os PNGs refeitos em `sim-codigo/`.
+- **Como medi:** do mesmo jeito do `a5e723b`, no servidor real (`uvicorn`, dados novos numa pasta temporária, os mesmos usuários fictícios). Abri o painel "Faróis" das 8 linhas e o "Novo usuário" com o perfil Pré-venda e com o perfil Trade, a 1366×768, 1920×1080 e 390×844. Fiz uma rodada com o aviso "Sem dados ainda…" e outra sem ele, e repeti o pior caso, com todas as caixas de "Liberar" marcadas.
+
+### Resultado
+
+**Aprovado: sem 🔴 e sem 🟡.**
+
+| Item | e0a17f6 |
+|---|---|
+| 🟡 C1 · "Novo usuário" no PC | **Resolvido.** Entrou o `.u-novo-form>.f-rodape{grid-column:1/-1}`. Os campos ficam numa linha, com 38 px. A Senha fica livre (no ponto em que se clica, o elemento é o próprio campo), nenhum farol quebra, o "Criar" fica a 601 px e a página em 768 (`sim-codigo/4-novo-usuario-pc.png`) |
+| 🟡 C2 · painel do Trade a 1366 | **Resolvido.** Entrou a classe `f-partes-sem-perfil`, com 4 colunas a partir de 701 px. O painel tem 331 px, o "Salvar acesso" fica a 661 px (697 com o aviso) e a página em 768. Nenhum "liberado" quebra, nem com as 18 caixas marcadas, a 1366 e a 1920 (`sim-codigo/7-farois-trade-pc.png`) |
+| RD-0189 no CSS | Sem efeito visual. A sombra dos dois painéis virou uma regra só. O `position:relative` foi para a regra base da `.u-linha`. A regra do `.u-selos` no celular foi para o bloco de 700 px que já existia. O marcador do `summary` continua escondido pela `.u-det>summary`. O "Salvar acesso" fixo no celular ficou igual (60 px, a 836 px) |
+| Rolagem para o lado | Nenhuma: `scrollWidth = clientWidth` em todos os estados e tamanhos, e nenhuma caixa rola por dentro |
+| Alvos no celular | Todos ≥ 44 px no conteúdo da T-0050. O "Sair" do menu ☰ (31×25) é anterior a esta tarefa (🟢 8) |
+| Painel do Admin e do Diretor | 331 px; "Salvar acesso" a 537 px e a 599 px; página em 768 |
+| Tokens e escala (🟢 10) | Iguais ao `a5e723b`: só tokens, sem hex fora do `:root`; 16/600 · 12/400 · 11/600 · 14/400 · selo 12,48/700 · botão 14/600 |
+| D1 · rótulos | Nenhum código de perfil na tela |
+| "Alterado em" | Agora passa pelo filtro `manaus`. Saiu "Alterado em 27/11/2026 09:10 por admin.ficticio" para um registro gravado às `09:10:44-04:00`: a hora está certa |
+| Erro "nenhum farol" | O painel volta aberto, com o que estava marcado (`sim-codigo/5-erro-nenhum-farol-*`). A 1366, a página fica em 801 com o aviso e em cerca de 765 sem ele. É o caso raro de erro somado ao aviso, que só aparece sem pacote. Aceito |
+
+### 🟢 Novos (não bloqueiam)
+
+14. **"Novo usuário" com o perfil Trade e todas as 18 caixas de "Liberar" marcadas, a 1366:** o selo "liberado" de "Giro de produtos" desce para a linha de baixo. O formulário tem borda e padding a mais que o painel. É um caso extremo, sem estouro de largura, e a 1920 não acontece. Se quiser fechar: na `.u-novo-form .f-partes-sem-perfil`, use `padding:12px 10px`, ou baixe o `column-gap` para 14 px.
+
+Os 🟢 11 a 13 continuam valendo: o rótulo da Senha pode ficar, e a lista longa (linhas 04 a 07) vai para a tela-bc3 v2.
